@@ -87,6 +87,45 @@ forward voltage of 3.0–3.2 V, leaving no usable headroom on a 3.3 V rail, and 
 recommended per-GPIO source current is tight for direct drive. Two pixels on one GPIO is fewer
 parts, fewer failure modes, and moves all colour and brightness tuning into software.
 
+### Why a yellow sun, and why not an RGBW pixel
+
+The sun was originally warm white — `red: 100 %, green: 85 %, blue: 60 %`. In practice RGB "white"
+is unsatisfying. An RGB LED builds white from three narrow spectral spikes with gaps where cyan and
+amber should be, so it reads bluish and harsh rather than warm. The obvious fix is an SK6812 **RGBW**
+strip with a dedicated warm-white die.
+
+That was considered and rejected in favour of simply making the sun **yellow** — red and green, no
+blue at all. Five reasons, which compound:
+
+1. **A yellow sun is the better symbol.** Children draw suns yellow. This is not a compromise that
+   costs legibility; the "compromise" is more legible to a pre-literate child than the warm white it
+   replaced.
+2. **It costs very little brightness.** Perceived luminance is dominated by the green channel and
+   blue contributes little, so red + green retains most of the apparent output of red + green + blue.
+3. **It embraces what the hardware was already doing.** Blue has the highest forward voltage of the
+   three dies. On the deliberately-chosen 3.3 V rail it is the most starved channel, so the "white"
+   sun was already drifting yellow. Choosing yellow turns a drift into an intention.
+4. **It avoids a cascade of changes.** An RGBW white die needs more than 3.3 V to run properly, which
+   would have forced the supply back up to 5 V, which would have pushed the WS2812 data threshold
+   (0.7 × VDD) back above the C3's 3.3 V GPIO swing — the exact problem the 3.3 V rail was chosen to
+   solve. Recovering from that costs a series diode on the supply or a level shifter on the data
+   line. Yellow needs neither: no new parts, no change to the rail, no change to the wiring.
+5. **The device now emits no blue light at any time.** Even a warm-white phosphor LED has a blue pump
+   die behind the phosphor. Red + green has no blue emitter at all. In a child's bedroom, at the
+   device whose night state was already chosen for being far from the melatonin-suppressing
+   wavelengths, that is strictly better — and it now holds in the day state too.
+
+The exact yellow cannot be predicted through a 1.2 mm printed diffuser, and reflashing to nudge it is
+more friction than turning a slider. The sun's **green** percentage is therefore exposed as a `Sun
+hue` number (55–100 %, default 85 %), sweeping deep amber → gold → lemon yellow. Red stays at 100 %
+and blue at 0 %, so no setting can reintroduce blue.
+
+**The 55 % floor is deliberate.** The moon is amber at `green: 45 %`. Without a floor a parent tuning
+the sun downwards could land on nearly the moon's hue, and two icons of the same colour destroy the
+one signal the whole device exists to send. The floor keeps a visible gap between them. It is the
+same class of guard as `min_value: 1` on the brightness numbers: the slider is free to be wrong, but
+not free to break the design.
+
 ## Architecture
 
 ```
@@ -115,7 +154,8 @@ ever lit. All timing logic lives in Home Assistant, where it is easy to change.
 | ESPHome `sun_icon` switch | Light the sun; extinguish the moon and clear its switch | On/off |
 | Scripts `show_moon` / `show_sun` / `apply_state` | Own the mutual-exclusion rule and the boot/brightness re-apply | Internal |
 | Partition lights `sun_light` / `moon_light` | Own one pixel each | Internal, not exposed to HA |
-| Brightness `number` entities | Hold tuned levels across reboots | Read by the display scripts |
+| Brightness `number` entities (`night_brightness`, `day_brightness`) | Hold tuned levels across reboots | Read by the display scripts |
+| `sun_hue` `number` entity | Hold the sun's green percentage (its yellow) across reboots | Read by `show_sun` |
 | Enclosure | Diffuse and separate the two icons | Physical |
 
 ## Hardware
@@ -123,7 +163,7 @@ ever lit. All timing logic lives in Home Assistant, where it is easy to change.
 | Part | Choice | Notes |
 |---|---|---|
 | Controller | ESP32-C3 SuperMini | ~18 × 11 mm, USB-C, ~$3, native ESPHome support |
-| Light | 2 × WS2812B or SK6812 | Powered from the board's 3.3 V pin, data on GPIO4 |
+| Light | 2 × WS2812B or SK6812 (RGB, **not** RGBW) | Powered from the board's 3.3 V pin, data on GPIO4 |
 | Power | USB-C, captive cable | A few mA at night; the WiFi radio dominates |
 | Enclosure | Custom body + back plate | Board lives inside; see Enclosure below |
 | Fixings | Foam double-sided tape, opaque tape | Board mount, LED mask. Strain relief is a knot in the cable |
@@ -278,8 +318,8 @@ nozzle. The part is designed support-free.
 
 | State | Sun pixel | Moon pixel | Set by |
 |---|---|---|---|
-| Night | off | deep amber, ~2 % brightness | Moon switch on |
-| Morning wake window | warm white, ~80 % brightness | off | Sun switch on |
+| Night | off | deep amber (R 100 %, G 45 %, B 0 %), ~2 % brightness | Moon switch on |
+| Morning wake window | yellow (R 100 %, G tunable 55–100 %, B 0 %), ~80 % brightness | off | Sun switch on |
 | Ordinary daytime | off | off | Both switches off |
 
 Both lit is not in the table because it is unreachable: turning either switch on extinguishes the
@@ -290,11 +330,11 @@ Transitions crossfade over 20 seconds, so a child who happens to be awake catche
 
 Deep amber is chosen for night deliberately: it is at the far end of the spectrum from the blue
 wavelengths that suppress melatonin, and at 2 % it is readable in a black room without rousing a
-sleeping child.
+sleeping child. Neither icon has any blue component in any state — see "Why a yellow sun" above.
 
-Both brightness levels are exposed to Home Assistant as `number` entities and persist across
-reboots. Given that the enclosure geometry is fixed once ordered, these are the primary tuning
-mechanism and will need adjusting after first assembly.
+Both brightness levels and the sun's hue are exposed to Home Assistant as `number` entities and
+persist across reboots. Given that the enclosure geometry is fixed once ordered, these three are the
+primary tuning mechanism and will need adjusting after first assembly.
 
 ## State Persistence and Failure Modes
 
@@ -309,6 +349,7 @@ mechanism and will need adjusting after first assembly.
 | Cable yanked | USB-C pads tear off the PCB | Knot in the cable catches on the slot |
 | Back plate gaps or drops out | Wiring exposed in a child's bedroom | Hot-glue dabs or foam tape at assembly; prisable for servicing |
 | Brightness set to 0 in HA | A *lit* icon renders dark — indistinguishable from a dead device, the failure the design exists to prevent | `min_value: 1` on both brightness numbers |
+| Sun hue tuned down towards the moon's amber | The two icons become the same colour and the signal is lost | `min_value: 55` on `sun_hue`, against the moon's fixed `green: 45 %` |
 | Automation order mistake sets both switches on | Both icons lit, signal meaningless | Firmware mutual exclusion: each switch clears the other |
 
 ### The accepted gap
@@ -330,7 +371,7 @@ Two switch entities, both toggleable by hand at any time:
 | `switch.day_night_indicator_moon_icon` | On = moon lit = night |
 | `switch.day_night_indicator_sun_icon` | On = sun lit = the morning wake window |
 
-Plus the two brightness numbers. That is the whole interface — the partition lights are `internal`
+Plus the two brightness numbers and `Sun hue`. That is the whole interface — the partition lights are `internal`
 and deliberately not exposed, so there is exactly one control per icon rather than a switch and a
 light entity competing for the same pixel.
 
@@ -359,10 +400,12 @@ Roughly 60 lines of ESPHome YAML:
 
 - `esp32_rmt_led_strip` driving 2 pixels on GPIO4, marked `internal`.
 - Two `partition` lights, one pixel each, both `internal`, with a 20 s default transition.
-- Two template `number` entities holding day and night brightness, with `restore_value: true`.
+- Three template `number` entities holding day brightness, night brightness and the sun's hue (its
+  green percentage), all with `restore_value: true`. Each one's `on_value` runs `apply_state`, so a
+  change takes effect live.
 - Two scripts, `show_moon` and `show_sun`: each lights its own icon at the colour and brightness
   in the table above, turns the other icon's pixel off, and clears the other switch.
-- A third script, `apply_state`, dispatching on the two switches for boot and brightness changes:
+- A third script, `apply_state`, dispatching on the two switches for boot and number changes:
   moon lit, sun lit, or both dark, with the moon winning if both are somehow on.
 - Two template `switch`es with `restore_mode: RESTORE_DEFAULT_OFF`. Each `turn_on_action` runs its
   display script; each `turn_off_action` turns off only its own icon.

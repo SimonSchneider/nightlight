@@ -5,7 +5,7 @@
 | # | Part | Qty | Notes |
 |---|---|-----|-------|
 | 1 | ESP32-C3 SuperMini | 1 | Buy the **headerless** version if offered — nothing is plugged into the pins, and it is ~8 mm thinner. |
-| 2 | WS2812B (or SK6812) LED strip, **5 V**, **IP30**, 60 LEDs/m | 1 short offcut | Cut **two separate single pixels**, one per icon — not a 2-pixel run. See "Cutting the pixels" below. Two things to check in the listing: **(a) 5 V, not 12 V** — the exact chip is not critical and SK6812 is a fine, arguably better substitute, but a 12 V strip (WS2811, WS2815) looks nearly identical and **cannot run from the board's 3.3 V rail**, which this whole design depends on. **(b) IP30, not IP65/IP67** — the higher ratings are sleeved or potted in silicone, so freeing a single pixel means carving the coating off the pads with a knife. IP30 is bare PCB with exposed pads. Indoors there is no reason to want the coating. |
+| 2 | WS2812B (or SK6812) LED strip, **5 V**, **IP30**, 60 LEDs/m | 1 short offcut | Cut **two separate single pixels**, one per icon — not a 2-pixel run. See "Cutting the pixels" below. Two things to check in the listing: **(a) 5 V, not 12 V** — the exact chip is not critical and SK6812 is a fine, arguably better substitute, but a 12 V strip (WS2811, WS2815) looks nearly identical and **cannot run from the board's 3.3 V rail**, which this whole design depends on. **(b) IP30, not IP65/IP67** — the higher ratings are sleeved or potted in silicone, so freeing a single pixel means carving the coating off the pads with a knife. IP30 is bare PCB with exposed pads. Indoors there is no reason to want the coating. **(c) plain RGB, not RGBW** — see the note below. |
 | 3 | Silicone hookup wire, 26 AWG | 3 colours, ~60 cm each | Red (3.3 V), black (GND), any third colour (data). Two 3-wire runs are needed: roughly 100 mm each for board→sun, and 90 mm each for sun→moon. 60 cm per colour leaves comfortable margin for mistakes. |
 | 4 | USB-C cable, 1–2 m | 1 | Becomes captive inside the enclosure. Pick the length you actually want. |
 | 5 | USB power supply, 5 V | 1 | Any phone charger. Current draw is a few tens of mA. |
@@ -17,6 +17,13 @@
 
 **Tools:** soldering iron, wire strippers, scissors, small screwdriver, hot-glue gun
 (if retaining the plate with glue).
+
+**Do not "upgrade" to an RGBW strip.** SK6812 **RGB** is a fine substitute for WS2812B; SK6812
+**RGBW** (the variant with a fourth, white die) is not. Its white die needs more than 3.3 V to run
+properly, which forces the supply back to 5 V and puts the WS2812 data threshold above the C3's
+3.3 V GPIO — the exact problem the 3.3 V rail was chosen to avoid, and recovering from it costs a
+series diode or a level shifter. The sun is yellow (red + green, no blue) precisely so no white die
+is needed; see the spec's "Why a yellow sun, and why not an RGBW pixel".
 
 **Substitution note:** some ESP32-C3 SuperMini clones ship with a poorly tuned antenna
 and show weak WiFi. If range is a problem, an ESP32-C3-DevKitM-1 or a Wemos D1 Mini
@@ -63,10 +70,10 @@ To use it:
 3. **Judge samples 1–5 for transmission**, in the room and the lighting the finished
    device will live in. Two states, because they pull in opposite directions:
    - **Night**, pixel at ~2 % amber, room fully dark: readable but not room-lighting.
-   - **Day**, pixel at ~80 % warm white, room lit as it will be on a winter morning:
+   - **Day**, pixel at ~80 % yellow (red + green, no blue), room lit as it will be on a winter morning:
      legible from across the room.
-4. **Judge sample 6 for opacity**, and judge it hard. Set the pixel to **~80 % warm
-   white** (the brightest the device ever gets) and view it in a **fully dark room**
+4. **Judge sample 6 for opacity**, and judge it hard. Set the pixel to **~80 % yellow**
+   (the brightest the device ever gets) and view it in a **fully dark room**
    with dark-adapted eyes. That is the worst case — the winter-morning sun state —
    and it is when any wall glow would show. Sample 6 must look **dark**. A faint
    even glow is tolerable; a clearly visible disc is not.

@@ -106,6 +106,28 @@ number:
     on_value:
       - script.execute: apply_state
 
+  - platform: template
+    id: sun_hue
+    name: "Sun hue"
+    optimistic: true
+    restore_value: true
+    initial_value: 85
+    # This is the sun's GREEN percentage. Red is pinned at 100 % and blue at 0 %,
+    # so this one number sweeps the sun from deep amber through gold to lemon
+    # yellow. The right yellow behind a 1.2 mm printed diffuser cannot be
+    # predicted, and reflashing to nudge it is more friction than a slider.
+    #
+    # Floor of 55 is load-bearing. The moon is amber at green: 45 %. Anything
+    # much below 55 would let a parent tune the sun to nearly the moon's hue,
+    # and the two icons being *different* is the entire signal this device
+    # exists to send. The floor keeps a visible gap between them.
+    min_value: 55
+    max_value: 100
+    step: 1
+    unit_of_measurement: "%"
+    on_value:
+      - script.execute: apply_state
+
 script:
   # show_moon / show_sun are the mutual-exclusion mechanism. Each one lights
   # its own icon, extinguishes the other icon's pixel, and marks the other
@@ -133,11 +155,15 @@ script:
     then:
       - light.turn_off: moon_light
       - lambda: 'id(moon_icon).publish_state(false);'
+      # Yellow, not white: red and green only, no blue at all. See the spec's
+      # "Why a yellow sun, and why not an RGBW pixel" section. Green is tunable
+      # via the sun_hue number; red is always full and blue is always zero, so
+      # the device emits no blue light in any state.
       - light.turn_on:
           id: sun_light
           red: 100%
-          green: 85%
-          blue: 60%
+          green: !lambda 'return id(sun_hue).state / 100.0;'
+          blue: 0%
           brightness: !lambda 'return id(day_brightness).state / 100.0;'
 
   # Three states: moon lit, sun lit, or both dark (ordinary daytime — normal
