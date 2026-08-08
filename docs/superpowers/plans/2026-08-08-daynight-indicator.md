@@ -515,7 +515,9 @@ for part in body backplate; do
     if ! "$SCAD" -o "stl/${part}.stl" "${part}.scad" 2> "preview/${part}.log"; then
         echo "RENDER FAILED: $part"; fail=1; continue
     fi
-    if grep -qiE "2-manifold|self-intersect|ERROR" "preview/${part}.log"; then
+    # \bERROR\b matters: a SUCCESSFUL render prints "Status: NoError", and a
+    # case-insensitive bare ERROR matches inside that word.
+    if grep -qiE "2-manifold|self-intersect|\bERROR\b" "preview/${part}.log"; then
         echo "GEOMETRY PROBLEM: $part — print services may reject this"; fail=1
     fi
     # A near-empty STL means the render "succeeded" but produced nothing.
