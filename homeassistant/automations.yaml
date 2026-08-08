@@ -2,6 +2,26 @@
 # Create Automation → Edit in YAML, one automation per entry.
 #
 # Times are the starting point, not gospel. Adjust to suit.
+#
+# entity_id note: firmware/daynight.yaml sets both `name: daynight` and
+# `friendly_name: "Day/Night Indicator"`. Setting friendly_name makes
+# ESPHome/Home Assistant combine the friendly device name with each entity's
+# own name to build the entity_id (has_entity_name semantics), NOT the raw
+# `name:` slug. For the template switch `id: night_mode, name: "Night mode"`
+# that yields switch.day_night_indicator_night_mode — that is the value used
+# below, per https://www.home-assistant.io/integrations/esphome/.
+#
+# Entity_ids are only assigned once, at first registration, and HA does not
+# rename an already-registered entity if you re-flash with different naming
+# or run an older HA/ESPHome version. Before relying on these automations,
+# confirm the real id on your instance: Developer Tools → States (search
+# "night_mode"), or Settings → Devices & Services → ESPHome → the daynight
+# device → check the switch entity's id. The two candidates you may see are
+# switch.day_night_indicator_night_mode (current, friendly_name-based) or
+# switch.daynight_night_mode (legacy, name-slug-based). If the id here
+# doesn't match, update all three entity_id lines below — otherwise the
+# automations will trigger, report success, and do nothing, because they're
+# silently pointed at an entity that doesn't exist.
 
 - alias: "Day/Night — night at bedtime"
   description: "Show the moon from bedtime."
@@ -11,7 +31,7 @@
   actions:
     - action: switch.turn_on
       target:
-        entity_id: switch.daynight_night_mode
+        entity_id: switch.day_night_indicator_night_mode
   mode: single
 
 - alias: "Day/Night — day at wake time (weekdays)"
@@ -25,7 +45,7 @@
   actions:
     - action: switch.turn_off
       target:
-        entity_id: switch.daynight_night_mode
+        entity_id: switch.day_night_indicator_night_mode
   mode: single
 
 - alias: "Day/Night — day at wake time (weekend)"
@@ -39,5 +59,5 @@
   actions:
     - action: switch.turn_off
       target:
-        entity_id: switch.daynight_night_mode
+        entity_id: switch.day_night_indicator_night_mode
   mode: single
