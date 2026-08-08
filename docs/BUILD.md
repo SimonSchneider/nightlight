@@ -5,8 +5,8 @@
 | # | Part | Qty | Notes |
 |---|---|-----|-------|
 | 1 | ESP32-C3 SuperMini | 1 | Buy the **headerless** version if offered — nothing is plugged into the pins, and it is ~8 mm thinner. |
-| 2 | WS2812B LED strip, 60 LEDs/m | 1 short offcut | Cut **two separate single pixels**, one per icon — not a 2-pixel run. At 60 LEDs/m the pitch is 16.7 mm, but the apertures are 56 mm apart and a solid divider runs between them, so an intact run cannot reach both. A strip is still the easiest source: each cut segment arrives with solder pads on both ends. |
-| 3 | Silicone hookup wire, 26 AWG | 3 colours, ~60 cm each | Red (3.3 V), black (GND), any third colour (data). Two 3-wire runs are needed, and one of them crosses the enclosure. |
+| 2 | WS2812B LED strip, **5 V**, 60 LEDs/m | 1 short offcut | Cut **two separate single pixels**, one per icon — not a 2-pixel run. See "Cutting the pixels" below. **Must be 5 V WS2812B, not a 12 V WS2811 strip.** They look nearly identical, but 12 V strips cut only in groups of three and cannot run from the board's 3.3 V rail, which this whole design depends on. Check the listing says 5 V. |
+| 3 | Silicone hookup wire, 26 AWG | 3 colours, ~60 cm each | Red (3.3 V), black (GND), any third colour (data). Two 3-wire runs are needed: roughly 100 mm each for board→sun, and 90 mm each for sun→moon. 60 cm per colour leaves comfortable margin for mistakes. |
 | 4 | USB-C cable, 1–2 m | 1 | Becomes captive inside the enclosure. Pick the length you actually want. |
 | 5 | USB power supply, 5 V | 1 | Any phone charger. Current draw is a few tens of mA. |
 | 6 | Foam double-sided tape | 1 roll | Mounts the board and both pixels to the back plate; can also retain the plate. |
@@ -20,6 +20,29 @@
 **Substitution note:** some ESP32-C3 SuperMini clones ship with a poorly tuned antenna
 and show weak WiFi. If range is a problem, an ESP32-C3-DevKitM-1 or a Wemos D1 Mini
 drops in with no change other than possibly the GPIO number.
+
+## Cutting the pixels
+
+A 5 V WS2812B strip is a chain of independent pixels with a **marked cut line between
+every one** — usually a dotted line across a pair of copper pads. Cut there with
+scissors and each pixel comes away as its own small PCB carrying three solder pads at
+each end:
+
+```
+        ┌──────────────────┐
+   VCC ─┤                  ├─ VCC
+   GND ─┤   one WS2812B    ├─ GND
+   DIN ─┤   ───► data ───► ├─ DOUT
+        └──────────────────┘
+      input side        output side
+```
+
+That is all the preparation needed — no extra parts, and nothing to add to the pixel
+itself. Cut two of them.
+
+Both pixels mount on the **back plate**, 56 mm apart, not on the front. The 25 mm
+chamber depth does the light-spreading, so the wires between them lie flat across the
+plate and pass through the notch. They stay short.
 
 ## Wiring
 
