@@ -1,0 +1,43 @@
+# Reference copy. Paste into Home Assistant via Settings → Automations →
+# Create Automation → Edit in YAML, one automation per entry.
+#
+# Times are the starting point, not gospel. Adjust to suit.
+
+- alias: "Day/Night — night at bedtime"
+  description: "Show the moon from bedtime."
+  triggers:
+    - trigger: time
+      at: "19:00:00"
+  actions:
+    - action: switch.turn_on
+      target:
+        entity_id: switch.daynight_night_mode
+  mode: single
+
+- alias: "Day/Night — day at wake time (weekdays)"
+  description: "Show the sun on school mornings."
+  triggers:
+    - trigger: time
+      at: "06:30:00"
+  conditions:
+    - condition: time
+      weekday: [mon, tue, wed, thu, fri]
+  actions:
+    - action: switch.turn_off
+      target:
+        entity_id: switch.daynight_night_mode
+  mode: single
+
+- alias: "Day/Night — day at wake time (weekend)"
+  description: "Show the sun later at weekends."
+  triggers:
+    - trigger: time
+      at: "07:30:00"
+  conditions:
+    - condition: time
+      weekday: [sat, sun]
+  actions:
+    - action: switch.turn_off
+      target:
+        entity_id: switch.daynight_night_mode
+  mode: single
