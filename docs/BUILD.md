@@ -9,10 +9,9 @@
 | 3 | Silicone hookup wire, 26 AWG | 3 colours, ~30 cm each | Red (3.3 V), black (GND), any third colour (data). |
 | 4 | USB-C cable, 1–2 m | 1 | Becomes captive inside the enclosure. Pick the length you actually want. |
 | 5 | USB power supply, 5 V | 1 | Any phone charger. Current draw is a few tens of mA. |
-| 6 | Zip ties, small | a few | Cable strain relief. |
-| 7 | Foam double-sided tape | 1 roll | Mounts the board to the back plate. |
-| 8 | Opaque tape (electrical or gaffer) | 1 roll | Masks the board's power LED. |
-| 9 | Tracing paper or baking parchment | a sheet | Spare diffuser, only if the printed face reads wrong. |
+| 6 | Foam double-sided tape | 1 roll | Mounts the board to the back plate. |
+| 7 | Opaque tape (electrical or gaffer) | 1 roll | Masks the board's power LED. |
+| 8 | Tracing paper or baking parchment | a sheet | Spare diffuser, only if the printed face reads wrong. |
 
 **Tools:** soldering iron, wire strippers, scissors, small screwdriver.
 

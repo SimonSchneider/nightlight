@@ -15,9 +15,6 @@ backplate_t   = 2.4;
 
 // --- Back plate features, slot open to the plate edge ------------------------
 cable_slot_w  = 8.0;   // deliberately oversized; no tolerance to miss
-post_h        = 8.0;   // zip-tie post height
-post_d        = 6.0;   // zip-tie post diameter
-post_slot_w   = 3.5;   // slot through the post for the zip tie
 
 // --- Fit -------------------------------------------------------------------
 clearance     = 0.6;   // total lip clearance (0.3 mm per side against cavity)
@@ -35,7 +32,5 @@ assert(divider_t <= aperture_gap,
        "Divider is wider than the gap between apertures; they would overlap.");
 assert(face_t < wall,
        "Face must be thinner than the wall, or there is nothing left to thin.");
-assert(post_slot_w < post_d,
-       "Zip-tie slot is wider than the post it passes through.");
 assert(face_t >= 0.8,
        "A face thinner than 0.8 mm will not print reliably and may be translucent enough to show the pixel as a hot spot.");
