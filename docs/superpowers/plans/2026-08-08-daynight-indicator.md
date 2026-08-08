@@ -27,6 +27,14 @@ Every task's requirements implicitly include these.
 
 ---
 
+## Revisions after execution began
+
+Three changes were made during the build. **Where a task's code block below disagrees with the files in `cad/`, the files win** — they are the built artifact and the source of truth.
+
+1. **Cable entry is a U-slot open to the plate edge, not a closed hole** (`cable_hole_d` renamed `cable_slot_w`). The closed 8 mm hole made assembly impossible: a USB-C plug is ~12 × 6.5 mm bare and ~15 × 8 mm overmoulded, so neither end of the cable could pass through it in either direction. The slot admits the cable sideways, so no connector passes through anything.
+2. **Lip clearance loosened from 0.15 mm to 0.3 mm per side** (`clearance` 0.3 → 0.6; the variable is the total, not per side). 0.15 mm/side is inside the tolerance band of a typical print service over a 115 mm span, risking a plate that will not close on a part that cannot be cheaply re-ordered.
+3. **Zip-tie post removed** (`post_h`, `post_d`, `post_slot_w` deleted). The device lives on a high shelf out of reach. Strain relief moves to an assembly step: a simple overhand knot tied in the cable inside the enclosure is ~10 mm across and cannot pass back through the 8 mm slot, so it takes the pull instead of the board's USB-C connector. Consistent with the project principle that recoverable failures earn assembly instructions, not printed geometry.
+
 ## File Structure
 
 | File | Responsibility |
@@ -34,7 +42,7 @@ Every task's requirements implicitly include these.
 | `cad/params.scad` | Every tunable dimension, and assertions that they are self-consistent |
 | `cad/icons.scad` | 2D sun and moon profiles, nothing else |
 | `cad/body.scad` | The front shell: icon windows, thinned faces, light divider |
-| `cad/backplate.scad` | The back plate: cable hole, zip-tie post |
+| `cad/backplate.scad` | The back plate: lip, and a U-slot cable entry open to the edge |
 | `cad/render.sh` | Export STLs and preview PNGs |
 | `firmware/daynight.yaml` | Complete ESPHome device configuration |
 | `firmware/secrets.example.yaml` | Template for the secrets the config expects |
@@ -153,6 +161,8 @@ openscad --help 2>&1 | grep -i backend || echo "no backend flag"
 This version defaults to the Manifold geometry backend rather than the older CGAL one. That matters for the checks later in this plan: Manifold repairs many self-intersections silently and does **not** emit the classic `Object may not be a valid 2-manifold` warning. So an empty warning log is weaker evidence than it used to be — the visual preview and file-size checks carry more weight, not less.
 
 - [ ] **Step 3: Write `cad/params.scad`**
+
+> **Superseded — see Revisions above.** The block below is the original. The built file drops `post_h`/`post_d`/`post_slot_w` and their assertion, renames `cable_hole_d` to `cable_slot_w`, and sets `clearance = 0.6`. Read `cad/params.scad` for current values.
 
 ```openscad
 // All dimensions in millimetres.
@@ -410,6 +420,8 @@ git commit -m "cad: add enclosure body with icon windows and light divider"
 - Produces: modules `backplate()` (plate, lip and post) and `backplate_with_holes()` (the former, minus the cable entry); the file calls `backplate_with_holes()` at top level
 
 - [ ] **Step 1: Write `cad/backplate.scad`**
+
+> **Superseded — see Revisions above.** The block below is the original. The built file has no zip-tie post, and its cable entry is a U-slot open to the `-Y` edge (the hull of two `cable_slot_w` cylinders) rather than a closed cylinder. The module is named `backplate_with_slot()`. Read `cad/backplate.scad` for the current geometry.
 
 ```openscad
 include <params.scad>
@@ -1004,9 +1016,9 @@ Find the always-on power LED on the ESP32-C3 (a small SMD LED near the USB conne
 
 1. Tape the board to the back plate with foam tape, off to one side — **not directly behind either aperture**, or it shadows the diffuser.
 2. Orient the board so the PCB antenna end faces open volume, with the pixel wiring running the other way.
-3. Feed the USB-C cable through the cable hole from outside.
+3. Lay the USB-C cable sideways into the U-slot from the plate's edge. No connector has to pass through anything — that is the whole point of the slot.
 4. Plug it into the board.
-5. Loop a zip tie around the cable just inside the hole and cinch it to the post. Tug the cable from outside — the pull must be taken by the post, not the connector.
+5. Tie a simple overhand knot in the cable **inside** the enclosure, positioned so it sits against the inside of the slot when the cable is pulled taut. Tug the cable from outside: the knot must catch on the slot. A knot is ~10 mm across and cannot pass back through the 8 mm slot, so it takes the strain instead of the board's surface-mounted USB-C connector, whose pads tear off the PCB if pulled — an irrecoverable failure that kills the board.
 6. Seat pixel 0 behind the **sun** window and pixel 1 behind the **moon** window, in their respective chambers.
 7. Close the back plate.
 
@@ -1024,7 +1036,7 @@ In a normally lit room, set day mode. Adjust `number.daynight_day_brightness` un
 
 In a fully dark room with night mode set, look at the sun window and at the seams.
 
-Expected: the sun window is completely dark, and no light escapes around the back plate or the cable hole. Any glow at the sun window means the divider is not sealing. Any coloured point elsewhere means the power LED mask has come loose.
+Expected: the sun window is completely dark, and no light escapes around the back plate or the cable slot. Check the slot specifically — it is open to the plate's edge, so the cable itself is what blocks it. If light spills there, pack the slot with a scrap of opaque tape around the cable. Any glow at the sun window means the divider is not sealing. Any coloured point elsewhere means the power LED mask has come loose.
 
 - [ ] **Step 7: Verify power-loss restore (spec verification 4)**
 
@@ -1050,8 +1062,8 @@ Expected: the sun is unambiguously lit. **This is the requirement that justified
 1. Mask the board's power LED with opaque tape.
 2. Foam-tape the board to the back plate, off to one side, clear of both apertures.
 3. Orient the antenna end toward open space, away from the pixel wiring.
-4. Feed the USB-C cable in through the hole, plug it into the board.
-5. Zip-tie the cable to the post. Tug to confirm the post takes the load.
+4. Lay the USB-C cable sideways into the U-slot, plug it into the board.
+5. Tie an overhand knot in the cable inside the enclosure. Tug from outside to confirm the knot catches on the slot and takes the load.
 6. Pixel 0 behind the sun, pixel 1 behind the moon.
 7. Close the back plate.
 

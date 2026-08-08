@@ -98,7 +98,7 @@ switch is in. All timing logic lives in Home Assistant, where it is easy to chan
 | Light | 2 × WS2812B or SK6812 | Powered from the board's 3.3 V pin, data on GPIO4 |
 | Power | USB-C, captive cable | A few mA at night; the WiFi radio dominates |
 | Enclosure | Custom body + back plate | Board lives inside; see Enclosure below |
-| Fixings | 1 × zip tie, foam double-sided tape, opaque tape | Strain relief, board mount, LED mask |
+| Fixings | Foam double-sided tape, opaque tape | Board mount, LED mask. Strain relief is a knot in the cable |
 
 **Pin choice:** GPIO2, GPIO8 and GPIO9 are strapping pins on the ESP32-C3 and are sampled during
 boot; hanging a WS2812 data line off one risks intermittent boot failures. GPIO4 is used instead.
@@ -147,8 +147,8 @@ Features:
   the sun and both glow faintly, destroying the signal. This is the single most important feature
   of the part, and the one thing that cannot be fixed after printing.
 - A pocket behind each aperture locating one pixel.
-- A **generously oversized cable hole** in the back plate, plus an **internal zip-tie post** for
-  strain relief.
+- A **U-shaped cable slot open to the back plate's edge**, generously oversized. Strain relief is
+  a knot tied in the cable at assembly, not a printed feature.
 
 Parametric so aperture diameter, face thickness, wall height and pixel pocket dimensions are all
 variables rather than baked geometry.
@@ -175,7 +175,8 @@ Three assembly rules, none of which affect the printed geometry:
 
 ### Power entry
 
-**A captive USB-C cable through an oversized hole, retained by an internal zip-tie post.**
+**A captive USB-C cable laid into a U-slot open to the back plate's edge, retained by a knot tied
+in the cable.**
 
 A fitted USB-C port cutout was rejected: its position is fixed relative to wherever the board
 happens to be taped, which is not a dimension the print can know in advance, and
@@ -184,16 +185,26 @@ A seam-clamped "pinch" hole was rejected for the same class of reason — it dep
 tolerance against a guessed cable jacket diameter, where too tight prevents the back plate
 closing and too loose grips nothing.
 
-The oversized hole has no tolerance to miss. The zip tie takes up whatever slack the print
-leaves and works with any cable diameter. Under a hard pull the zip tie yields before the
-surface-mounted USB-C connector tears its pads off the PCB. It also leaves no exposed port for a
-child to poke.
+**A closed round hole was also rejected, and this one was a live defect caught during the build.**
+An 8 mm hole cannot be assembled at all: a USB-C plug is roughly 12 × 6.5 mm bare and ~15 × 8 mm
+overmoulded, and the cable's far end carries a connector too, so neither end passes through in
+either direction. Enlarging the hole enough to admit a plug would make it conspicuous and leak
+light. A slot open to the edge sidesteps the problem entirely — the cable drops in sideways and
+no connector passes through anything.
 
-The post is retained despite the board being taped down, because tape in shear will peel long
-before the connector gives, and a torn-off USB-C pad destroys the board with no recovery.
+The slot is generously oversized, so there is no tolerance to miss. It also leaves no exposed
+port for a child to poke.
 
-Assembly order: back plate off → mask the board's power LED → tape board to back plate → feed
-cable through hole → plug into board → zip-tie cable to post → back plate on.
+**Strain relief is a knot, not a printed feature.** An earlier revision specified an internal
+zip-tie post. It was removed once the device's location was settled — a high shelf, out of
+children's reach. A simple overhand knot tied in the cable inside the enclosure is roughly 10 mm
+across and cannot pass back through the 8 mm slot, so it performs the same job for free. This
+still matters even out of reach: the board's USB-C connector is surface-mounted, its pads tear
+off the PCB under a hard pull, and that destroys the board with no recovery — so the pull must
+land on something other than the connector.
+
+Assembly order: back plate off → mask the board's power LED → tape board to back plate → lay
+cable into the slot → plug into board → tie the knot inside → back plate on.
 
 ### Material
 
@@ -240,7 +251,7 @@ mechanism and will need adjusting after first assembly.
 | Diffuser too harsh, or pixel visible as a hot spot | Poor readability | Tape paper behind the window |
 | Light bleed between icons | Both icons glow, signal lost | Internal dividing wall |
 | Board power LED leaks | Blue/red point of light at night | Opaque tape over the LED at assembly |
-| Cable yanked | USB-C pads tear off the PCB | Zip-tie post takes the load |
+| Cable yanked | USB-C pads tear off the PCB | Knot in the cable catches on the slot |
 
 ### The accepted gap
 
