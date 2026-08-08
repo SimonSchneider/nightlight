@@ -5,7 +5,7 @@
 | # | Part | Qty | Notes |
 |---|---|-----|-------|
 | 1 | ESP32-C3 SuperMini | 1 | Buy the **headerless** version if offered — nothing is plugged into the pins, and it is ~8 mm thinner. |
-| 2 | WS2812B LED strip, **5 V**, 60 LEDs/m | 1 short offcut | Cut **two separate single pixels**, one per icon — not a 2-pixel run. See "Cutting the pixels" below. **Must be 5 V WS2812B, not a 12 V WS2811 strip.** They look nearly identical, but 12 V strips cut only in groups of three and cannot run from the board's 3.3 V rail, which this whole design depends on. Check the listing says 5 V. |
+| 2 | WS2812B (or SK6812) LED strip, **5 V**, 60 LEDs/m | 1 short offcut | Cut **two separate single pixels**, one per icon — not a 2-pixel run. See "Cutting the pixels" below. **The constraint is 5 V, not 12 V** — the exact chip is not critical, and SK6812 is a fine, arguably better, substitute. A 12 V strip (WS2811, WS2815) looks nearly identical in a listing but **cannot run from the board's 3.3 V rail**, which this whole design depends on. Check the listing says 5 V. |
 | 3 | Silicone hookup wire, 26 AWG | 3 colours, ~60 cm each | Red (3.3 V), black (GND), any third colour (data). Two 3-wire runs are needed: roughly 100 mm each for board→sun, and 90 mm each for sun→moon. 60 cm per colour leaves comfortable margin for mistakes. |
 | 4 | USB-C cable, 1–2 m | 1 | Becomes captive inside the enclosure. Pick the length you actually want. |
 | 5 | USB power supply, 5 V | 1 | Any phone charger. Current draw is a few tens of mA. |
@@ -23,22 +23,37 @@ drops in with no change other than possibly the GPIO number.
 
 ## Cutting the pixels
 
+**Why two separate pixels and not a 2-pixel length of strip.** At 60 LEDs/m the pixel
+pitch is 16.7 mm. The two apertures are **56 mm apart**, and a solid printed divider
+runs between the chambers, so a continuous strip could neither reach nor pass. Each
+pixel has to be freed and placed on its own, joined by a 3-wire run that crosses
+through the notch in the back plate's lip.
+
 A 5 V WS2812B strip is a chain of independent pixels with a **marked cut line between
-every one** — usually a dotted line across a pair of copper pads. Cut there with
-scissors and each pixel comes away as its own small PCB carrying three solder pads at
-each end:
+every one** — a dotted line crossing the three pairs of copper pads that join one pixel
+to the next. Cut along it with scissors and each pixel comes away as its own small PCB
+with **three solder pads at each end** — one half of each pad-pair stays with each
+neighbour:
 
 ```
         ┌──────────────────┐
    VCC ─┤                  ├─ VCC
-   GND ─┤   one WS2812B    ├─ GND
-   DIN ─┤   ───► data ───► ├─ DOUT
+  DATA ─┤   one WS2812B    ├─ DATA
+   GND ─┤   ───► data ───► ├─ GND
         └──────────────────┘
-      input side        output side
+     input side (DIN)   output side (DOUT)
 ```
 
+**Go by the silkscreen, not by this drawing.** The vertical order of the three pads
+varies between strips and manufacturers; every strip prints its own labels next to
+them (5V or VCC, DIN/DI and DOUT/DO, GND). Read them under good light, with a magnifier
+if needed, and identify each pad before soldering. Mistaking GND for DIN puts the supply
+across the data input and destroys the pixel — this is the one error here with no
+recovery, and it is invisible until nothing lights.
+
 That is all the preparation needed — no extra parts, and nothing to add to the pixel
-itself. Cut two of them.
+itself. Cut two of them, and cut a spare if the offcut allows; they cost nothing and
+a mis-soldered pad is easier to replace than to rework.
 
 Both pixels mount on the **back plate**, 56 mm apart, not on the front. The 25 mm
 chamber depth does the light-spreading, so the wires between them lie flat across the

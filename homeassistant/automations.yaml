@@ -76,15 +76,26 @@
         entity_id: switch.day_night_indicator_sun_icon
   mode: single
 
-- alias: "Day/Night — dark for the day"
+- alias: "Day/Night — both icons dark for the day"
   description: >-
-    End the wake window. Both icons dark for the rest of the day, which is the
-    ordinary daytime state — nobody needs a lit sun at 2pm.
+    End the wake window. Turn BOTH icons off for the rest of the day, which is
+    the ordinary daytime state — nobody needs a lit sun at 2pm.
   triggers:
     - trigger: time
       at: "08:30:00"
   actions:
+    # Both entities deliberately, not just the sun. This is the schedule's
+    # only self-healing point. If Home Assistant is restarting at 06:30, or
+    # the device is offline during a WiFi reconnect, the sun-on never fires —
+    # HA does not replay missed time triggers — and the moon is never cleared.
+    # A sun left on self-heals at 19:00 when moon-on extinguishes it; a moon
+    # left on has no other recovery point, and would burn amber through
+    # breakfast, noon and the whole afternoon until 19:00, answering "night"
+    # for thirteen daylight hours. Turning off a switch that is already off is
+    # harmless, so the cost of the extra target is nil.
     - action: switch.turn_off
       target:
-        entity_id: switch.day_night_indicator_sun_icon
+        entity_id:
+          - switch.day_night_indicator_sun_icon
+          - switch.day_night_indicator_moon_icon
   mode: single

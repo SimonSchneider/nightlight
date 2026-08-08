@@ -300,7 +300,7 @@ mechanism and will need adjusting after first assembly.
 
 | Failure | Behaviour | Mitigation |
 |---|---|---|
-| Power loss | Both switches restore their last state on boot via `restore_mode`; if both somehow restore on, the moon wins | Built in |
+| Power loss | Both switches restore their last state on boot via `restore_mode`; if both somehow restore on, the moon wins | Built in — the moon switch is declared second in the firmware, and at boot the second one wins; see the comment on the `switch:` block |
 | WiFi or HA down overnight | Device holds last state; will not flip in the morning | **Accepted gap** |
 | Weak WiFi from C3 clone | Intermittent connection | Substitute a different board |
 | Diffuser too harsh, or pixel visible as a hot spot | Poor readability | Tape paper behind the window |
@@ -345,9 +345,13 @@ running instance before relying on these IDs; automations targeting a non-existe
 success and do nothing.
 
 Four automations drive them: moon on at bedtime (19:00), sun on at wake time (06:30 weekdays,
-07:30 weekends), and sun off at 08:30 every day, leaving both icons dark for the rest of the day.
-Turning the sun on needs no accompanying moon-off action — the firmware does that. No helper
-`input_boolean` is needed; the ESPHome switches are the state.
+07:30 weekends), and **both** switches off at 08:30 every day, leaving both icons dark for the
+rest of the day. Turning the sun on needs no accompanying moon-off action — the firmware does
+that. The 08:30 automation nonetheless targets both switches deliberately: it is the schedule's
+only self-healing point. HA does not replay missed time triggers, so a 06:30 sun-on lost to an HA
+restart or a device reconnect would otherwise leave the moon lit until 19:00 — thirteen daylight
+hours answering "night". A stuck-on sun already self-heals at 19:00; a stuck-on moon has no other
+recovery. No helper `input_boolean` is needed; the ESPHome switches are the state.
 
 ## Firmware Sketch
 
@@ -393,9 +397,12 @@ Roughly 60 lines of ESPHome YAML:
 5. **HA round trip** — toggle both switches from HA; confirm both work and the crossfade runs.
 6. **Winter-morning case** — with the room fully dark, turn the sun switch on and confirm the sun
    is unambiguously lit.
-7. **Mutual exclusion** — with the moon lit, turn the sun switch on: the moon must go dark *and*
-   its switch must report off in HA within a second or two. Repeat in the other direction. Then
-   turn the lit icon off and confirm both are dark and both switches report off.
+7. **Mutual exclusion** — with the moon lit, turn the sun switch on. The moon *switch* must report
+   off in HA within a second or two; the moon *pixel* then fades out over the full 20 s crossfade,
+   so watching the panel alone looks like both icons are lit for those 20 seconds. That is
+   expected, not a fault — judge mutual exclusion by the switch states, and give the panel 20 s
+   before judging it. Repeat in the other direction. Then turn the lit icon off and confirm both
+   switches report off and, 20 s later, both apertures are dark.
 
 ## Build Order
 
@@ -405,4 +412,4 @@ Roughly 60 lines of ESPHome YAML:
    the bench. **Do this before the prints arrive** — it needs no enclosure, and finding a
    firmware problem while waiting on shipping costs nothing.
 4. Assemble per the order in Power Entry; run verification steps 1–3 and tune brightness.
-5. Write the HA automations; run verification steps 4–6.
+5. Write the HA automations; run verification steps 4–7.

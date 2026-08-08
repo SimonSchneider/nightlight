@@ -149,7 +149,9 @@ script:
   #
   # If both switches somehow restore ON from flash, the moon wins: a child
   # woken at 3am should see night. show_moon then clears the sun switch, so
-  # the impossible state does not survive the boot.
+  # the impossible state does not survive the boot. This is the steady-state
+  # tiebreak; the boot-time one is settled earlier, by the declaration order
+  # of the two switches — see the note on the switches below.
   - id: apply_state
     mode: restart
     then:
@@ -180,18 +182,28 @@ switch:
   # its new state, so anything reading switch.is_on for the switch being
   # toggled would read the OLD value and drive the wrong icon on every toggle.
   # Nothing below reads the state of the switch it belongs to.
-  - platform: template
-    id: moon_icon
-    name: "Moon icon"
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
-    turn_on_action:
-      - script.execute: show_moon
-    turn_off_action:
-      # Only this icon goes dark. The sun is left exactly as it was, which is
-      # normally off — both dark is ordinary daytime.
-      - light.turn_off: moon_light
-
+  #
+  # DECLARATION ORDER IS LOAD-BEARING: sun_icon must stay first, moon_icon
+  # second. If both switches restore ON from flash, this order — not
+  # apply_state's tiebreak — is what decides which icon a child sees at 3am.
+  # A template switch applies its restored state during its own setup(), which
+  # fires turn_on_action there and then. Both switches share a setup priority,
+  # so Application::setup() runs them in declaration order, and the one
+  # declared SECOND runs last and wins:
+  #
+  #   1. sun_icon.setup()  -> show_sun  -> moon_icon.publish_state(false).
+  #      moon_icon has not set up yet, so it has no preference object and that
+  #      write never reaches flash — the moon's stored ON survives.
+  #   2. moon_icon.setup() -> reads flash, still ON -> show_moon -> the sun
+  #      pixel goes dark and sun_icon.publish_state(false) does stick, because
+  #      sun_icon is fully set up by now.
+  #   3. on_boot (-100) runs apply_state, which reads moon=on, sun=off and
+  #      re-runs show_moon. Same outcome, so the two paths agree.
+  #
+  # Swap these two blocks and the sun wins instead, silently. Nothing else in
+  # this file would change, and no test would fail; only a 3am wake would show
+  # it. The "at most one lit" invariant holds either way — order decides only
+  # which one that is.
   - platform: template
     id: sun_icon
     name: "Sun icon"
@@ -200,4 +212,16 @@ switch:
     turn_on_action:
       - script.execute: show_sun
     turn_off_action:
+      # Only this icon goes dark. The moon is left exactly as it was, which is
+      # normally off — both dark is ordinary daytime.
       - light.turn_off: sun_light
+
+  - platform: template
+    id: moon_icon
+    name: "Moon icon"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - script.execute: show_moon
+    turn_off_action:
+      - light.turn_off: moon_light
