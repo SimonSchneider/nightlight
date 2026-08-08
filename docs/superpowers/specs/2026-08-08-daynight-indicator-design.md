@@ -218,7 +218,7 @@ Features:
   the sun and both glow faintly, destroying the signal. This is the single most important feature
   of the part, and the one thing that cannot be fixed after printing.
 - **No printed pixel pocket.** An earlier revision listed "a pocket behind each aperture locating
-  one pixel". It was dropped during the build and is superseded by `chamber_depth = 40` with both
+  one pixel". It was dropped during the build and is superseded by `chamber_depth = 30` with both
   pixels taped to the back plate. The reason: a pocket in the body would fix the pixel's standoff
   from the face, but 25 mm of chamber is already enough for the light to spread evenly, so the
   pocket buys nothing optically — while its depth, width and the pixel's own carrier dimensions

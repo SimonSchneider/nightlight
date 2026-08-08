@@ -8,14 +8,16 @@ face_t        = 1.2;   // translucent face left at the icons (3 x 0.4)
 // --- Shell -----------------------------------------------------------------
 wall          = 2.4;   // outer wall, opaque at this thickness (6 x 0.4)
 divider_t     = 2.4;   // wall between the two chambers
-chamber_depth = 40;    // pixel-to-face standoff; governs how evenly light spreads.
-                       // Raised from 25 after coupon testing: 20-30 mm was needed
-                       // for even diffusion behind a 20 mm window, and the sun's
-                       // core disc is 24 mm. 40 mm gives a standoff/aperture ratio
-                       // of ~1.7 on that disc, comfortably past what was measured.
-                       // Costs light: illuminance falls with the square of this,
-                       // so 25 -> 40 keeps only ~(25/40)^2 = 39%. day_brightness
-                       // has headroom (default 80 of 100) to absorb it.
+chamber_depth = 30;    // pixel-to-face standoff; governs how evenly light spreads.
+                       // Coupon testing showed 20-30 mm is needed behind a 20 mm
+                       // window. The largest continuous lit area here is the sun's
+                       // 24 mm core disc — the rays are thin and the moon is a
+                       // ~13 mm crescent — so 30 mm gives a standoff/aperture ratio
+                       // of 1.25 on the disc, inside the measured range.
+                       // Chosen over 40 mm to keep light: illuminance falls with
+                       // the square of standoff, so 30 mm puts ~78% more on the
+                       // face than 40 mm would. The sun has to compete with a lit
+                       // room, so that margin matters more than extra evenness.
 aperture_gap  = 16;    // flat space between the two aperture circles
 margin        = 12;    // border around the apertures
 backplate_t   = 2.4;
@@ -33,7 +35,7 @@ $fn = 96;
 // --- Derived ---------------------------------------------------------------
 body_w = 2 * margin + 2 * aperture_d + aperture_gap;   // 120
 body_h = 2 * margin + aperture_d;                      // 64
-body_d = wall + chamber_depth;                         // 42.4
+body_d = wall + chamber_depth;                         // 32.4
 ap_x   = (aperture_d + aperture_gap) / 2;              // 28, aperture centre offset
 
 // The lip is the raised pad on the back plate that drops into the body's open

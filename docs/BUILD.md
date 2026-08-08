@@ -66,11 +66,11 @@ To use it:
 
 1. Print it in the **same spool** the enclosure will use. Different white filaments
    differ a lot in pigment loading; a coupon from another spool proves nothing.
-2. Wire up one pixel and hold the coupon **40 mm above it** — the real chamber depth.
+2. Wire up one pixel and hold the coupon **30 mm above it** — the real chamber depth.
 3. **Judge samples 1–5 for transmission**, in the room and the lighting the finished
-   device will live in. Judge **brightness at the real 40 mm standoff**, not closer —
+   device will live in. Judge **brightness at the real 30 mm standoff**, not closer —
    illuminance falls with the square of the distance, so a face that looks bright at
-   20 mm delivers only a quarter of that at 40 mm. Two states, because they pull in
+   15 mm delivers only a quarter of that at 30 mm. Two states, because they pull in
    opposite directions:
    - **Night**, pixel at ~2 % amber, room fully dark: readable but not room-lighting.
    - **Day**, pixel at ~80 % yellow (red + green, no blue), room lit as it will be on a winter morning:
@@ -196,7 +196,7 @@ Order of work:
    you are looking at the panel from behind and left/right are mirrored. **The moon
    chamber is the one containing the cable slot; the sun chamber is the other one.**
    Foam tape holds the pixels to the back plate. There is no printed pixel pocket; the
-   40 mm chamber depth does the light-spreading work, so exact standoff is not
+   30 mm chamber depth does the light-spreading work, so exact standoff is not
    critical, but lateral centring is — an off-centre pixel shows as a bright edge on
    the icon.
 4. **Route the wiring through the notch in the lip.** The notch is the 6 mm wide slot
