@@ -96,8 +96,9 @@ switch is in. All timing logic lives in Home Assistant, where it is easy to chan
 |---|---|---|
 | Controller | ESP32-C3 SuperMini | ~18 × 11 mm, USB-C, ~$3, native ESPHome support |
 | Light | 2 × WS2812B or SK6812 | Powered from the board's 3.3 V pin, data on GPIO4 |
-| Power | USB-C | A few mA at night; the WiFi radio dominates |
-| Board housing | Off-the-shelf printed case | See Enclosure below |
+| Power | USB-C, captive cable | A few mA at night; the WiFi radio dominates |
+| Enclosure | Custom body + back plate | Board lives inside; see Enclosure below |
+| Retention | 1 × zip tie | Cable strain relief |
 
 **Pin choice:** GPIO2, GPIO8 and GPIO9 are strapping pins on the ESP32-C3 and are sampled during
 boot; hanging a WS2812 data line off one risks intermittent boot failures. GPIO4 is used instead.
@@ -109,40 +110,72 @@ in the design changes.
 
 ## Enclosure
 
-Two ordered prints — there is no 3D printer on hand, so iteration is slow and expensive, and the
-design is built to be right on arrival.
+Two ordered prints — body and back plate — forming one integrated object. There is no 3D printer
+on hand, so iteration is slow and expensive, and the design is built to be right on arrival.
+Every dimension that could be wrong is made tolerant rather than precise.
 
-### Front panel (custom, parametric OpenSCAD)
+The ESP32-C3 lives **inside** the enclosure. At 18 × 11 mm it fits easily in depth the panel
+already needs for light mixing, and integrating it removes an external cable run between two
+separate objects.
 
-A single part containing:
+### Body (custom, parametric OpenSCAD)
+
+Three internal compartments, divided by walls:
+
+| Compartment | Contents |
+|---|---|
+| Sun | 1 pixel, behind the sun aperture |
+| Moon | 1 pixel, behind the moon aperture |
+| Board | ESP32-C3, fully opaque, no aperture |
+
+Features:
 
 - A sun aperture and a moon aperture, side by side.
 - A **1.0 mm translucent printed face** across each aperture, acting as the primary diffuser.
 - A **recessed ledge** behind each aperture, sized to accept a hand-cut disc of tracing paper,
   baking parchment, or frosted acrylic. This is the escape hatch: if the printed face reads too
   harsh or too dim on arrival, the fix is free and immediate rather than a reprint.
-- An **internal baffle** between the two apertures. Without a dividing wall the lit moon bleeds
+- **Internal dividing walls** separating all three compartments. Without them the lit moon bleeds
   through the sun and both glow faintly, destroying the signal. This is the single most important
   feature of the part.
 - A pocket behind each aperture locating one pixel.
-- A cable route to the board housing.
+- A **generously oversized cable hole** in the back plate, plus an **internal zip-tie post** for
+  strain relief.
 
-Parametric so aperture diameter, face thickness, baffle height and pixel pocket dimensions are
-all variables rather than baked geometry.
+Parametric so aperture diameter, face thickness, wall height, pixel pocket and board pocket
+dimensions are all variables rather than baked geometry.
 
-### Board housing (off-the-shelf)
+### Board compartment requirements
 
-Any free ESP32-C3 SuperMini case, printed alongside the panel. Candidates found:
+Three constraints, each addressing a specific failure:
 
-- <https://www.printables.com/model/1014024-esp32-c3-super-mini-tiny-case/related>
-- <https://www.printables.com/model/1137008-esp32-c3c6h2s3-super-mini-case> — snap-fit lid, optional wire pass-through
-- <https://makerworld.com/en/models/727792-compact-enclosure-for-esp32-c3-supermini>
+1. **Fully opaque, no shared light path.** The C3 SuperMini has an always-on power LED. Inside a
+   box with a translucent face it leaks through, putting a blue or red point of light next to a
+   2 % amber moon — the exact wavelength the night state exists to avoid. The compartment is
+   walled off from both lit chambers. Belt and braces: cover the LED with opaque tape at assembly.
+2. **Antenna clearance.** Plastic is RF-transparent so enclosure is fine in itself, but the PCB
+   antenna must not sit against the pixel wiring. Orient the board with the antenna end facing
+   open volume and the wiring running the other way. The SuperMini's weak-antenna reputation
+   means there may be no margin to spare.
+3. **No port cutout.** See below.
 
-These were identified from search results only; the listing pages returned HTTP 403 and were not
-read directly. Verify dimensions and licence before ordering.
+### Power entry
 
-Keeping the board in its own serviceable case, rather than integrating it into the panel, means
-a controller swap does not require reprinting the panel.
+**A captive USB-C cable through an oversized hole, retained by an internal zip-tie post.**
+
+A fitted USB-C port cutout was rejected: its position is fixed relative to the board pocket, and
+being 1 mm out on a print that cannot be re-ordered cheaply means filing plastic or paying again.
+A seam-clamped "pinch" hole was rejected for the same class of reason — it depends on hitting a
+tolerance against a guessed cable jacket diameter, where too tight prevents the back plate
+closing and too loose grips nothing.
+
+The oversized hole has no tolerance to miss. The zip tie takes up whatever slack the print
+leaves and works with any cable diameter. Under a hard pull the zip tie yields before the
+surface-mounted USB-C connector tears its pads off the PCB. It also leaves no exposed port for a
+child to poke.
+
+Assembly order: back plate off → feed cable through hole → plug into board → zip-tie cable to
+post → seat board in its compartment → back plate on.
 
 ### Material
 
@@ -187,7 +220,9 @@ mechanism and will need adjusting after first assembly.
 | WiFi or HA down overnight | Device holds last state; will not flip in the morning | **Accepted gap** |
 | Weak WiFi from C3 clone | Intermittent connection | Substitute a different board |
 | Diffuser too harsh or too dim | Poor readability | Drop a paper diffuser into the ledge |
-| Light bleed between icons | Both icons glow, signal lost | Internal baffle |
+| Light bleed between icons | Both icons glow, signal lost | Internal dividing walls |
+| Board power LED leaks | Blue/red point of light at night | Opaque board compartment + tape over LED |
+| Cable yanked | USB-C pads tear off the PCB | Zip-tie post takes the load |
 
 ### The accepted gap
 
@@ -233,7 +268,8 @@ Approximately 40 lines of ESPHome YAML:
 2. **Lit-room readability** — confirm the sun is legible across a daylit room at the chosen day
    brightness.
 3. **Light bleed** — in a dark room with only the moon lit, confirm the sun aperture is fully
-   dark. This validates the baffle.
+   dark, and that no light escapes from the board compartment. This validates the dividing walls
+   and the power-LED masking.
 4. **Power-loss restore** — set night mode, pull USB, restore power, confirm the moon returns.
 5. **HA round trip** — toggle from HA and from the device's own entity; confirm both work and the
    crossfade runs.
@@ -242,10 +278,10 @@ Approximately 40 lines of ESPHome YAML:
 
 ## Build Order
 
-1. Write and render the OpenSCAD panel; export STL.
-2. Select and verify an off-the-shelf C3 case.
-3. Order both prints in white PLA or PETG.
-4. Write and flash the ESPHome configuration; verify entities appear in HA with bare pixels on
-   the bench.
-5. Assemble; run verification steps 1–3 and tune brightness.
-6. Write the HA automations; run verification steps 4–6.
+1. Write and render the OpenSCAD body and back plate; export STLs.
+2. Order both prints in white PLA or PETG.
+3. Write and flash the ESPHome configuration; verify entities appear in HA with bare pixels on
+   the bench. **Do this before the prints arrive** — it needs no enclosure, and finding a
+   firmware problem while waiting on shipping costs nothing.
+4. Assemble per the order in Power Entry; run verification steps 1–3 and tune brightness.
+5. Write the HA automations; run verification steps 4–6.
