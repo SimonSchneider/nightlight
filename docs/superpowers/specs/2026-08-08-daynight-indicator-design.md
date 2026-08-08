@@ -68,7 +68,7 @@ parts, fewer failure modes, and moves all colour and brightness tuning into soft
 ```
 Home Assistant                    Device
 --------------                    ------
-automations ──> switch.daynight_night_mode ──(ESPHome API)──> ESP32-C3
+automations ─> switch.day_night_indicator_night_mode ─(ESPHome API)─> ESP32-C3
                                                                  │
                                                             GPIO4 (data)
                                                                  │
@@ -84,7 +84,7 @@ switch is in. All timing logic lives in Home Assistant, where it is easy to chan
 
 | Unit | Responsibility | Interface |
 |---|---|---|
-| HA automations | Decide when night begins and ends | Set `switch.daynight_night_mode` |
+| HA automations | Decide when night begins and ends | Set `switch.day_night_indicator_night_mode` |
 | ESPHome `night_mode` switch | Translate state into a light pair | On/off; drives both partition lights |
 | Partition lights `sun_light` / `moon_light` | Own one pixel each | Standard ESPHome light API |
 | Brightness `number` entities | Hold tuned levels across reboots | Read by the switch's actions |
@@ -289,7 +289,15 @@ straightforward to retrofit and requires no hardware change.
 
 ## Home Assistant Integration
 
-A single entity, `switch.daynight_night_mode`, toggleable by hand at any time.
+A single entity, `switch.day_night_indicator_night_mode`, toggleable by hand at any time.
+
+**On that entity ID.** Home Assistant derives it from the device's `friendly_name` ("Day/Night
+Indicator") plus the component name ("Night mode"), not from the ESPHome node name (`daynight`).
+This changed in HA 2025.5, which removed a legacy exception — older material describing
+`switch.daynight_night_mode` reflects the removed behaviour. Entity IDs are also assigned once at
+first registration and never auto-migrate, so a device first paired under an older version may
+still carry the old ID. Confirm against the running instance before relying on it; automations
+targeting a non-existent entity report success and do nothing.
 
 Two automations flip it on schedule — on at bedtime, off at wake time — with a separate weekend
 wake time if wanted. No helper `input_boolean` is needed; the ESPHome switch is the state.
