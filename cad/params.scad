@@ -13,8 +13,8 @@ aperture_gap  = 16;    // flat space between the two aperture circles
 margin        = 12;    // border around the apertures
 backplate_t   = 2.4;
 
-// --- Back plate features -----------------------------------------------------
-cable_hole_d  = 8.0;   // deliberately oversized; no tolerance to miss
+// --- Back plate features, slot open to the plate edge ------------------------
+cable_slot_w  = 8.0;   // deliberately oversized; no tolerance to miss
 post_h        = 8.0;   // zip-tie post height
 post_d        = 6.0;   // zip-tie post diameter
 post_slot_w   = 3.5;   // slot through the post for the zip tie

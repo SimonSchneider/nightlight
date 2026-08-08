@@ -1,8 +1,12 @@
 include <params.scad>
 
 // The back plate carries the board (foam tape, no printed retention) and the
-// zip-tie post that takes cable strain. It has no port cutout: the USB-C cable
-// is captive, passing through an oversized hole with no tolerance to miss.
+// zip-tie post that takes cable strain. The cable enters through a U-shaped
+// slot open to the plate edge — it drops in sideways, so no connector ever
+// has to pass through a closed opening. The zip tie cinched around the cable
+// just inboard of the slot is far wider than the slot mouth, so the cable
+// cannot pull back out; the slot only has to admit the cable, deliberately
+// oversized with no tolerance to miss.
 
 module backplate() {
     inner_w = body_w - 2 * wall - clearance;
@@ -28,9 +32,14 @@ module backplate() {
 module backplate_with_holes() {
     difference() {
         backplate();
-        // Oversized cable entry.
-        translate([body_w * 0.28, -body_h * 0.38, 0])
-            cylinder(d = cable_hole_d, h = backplate_t * 6, center = true);
+        // Oversized cable slot, open to the -Y edge so the cable drops in
+        // sideways instead of threading a connector through a closed hole.
+        hull() {
+            translate([body_w * 0.28, -body_h * 0.38, 0])
+                cylinder(d = cable_slot_w, h = backplate_t * 6, center = true);
+            translate([body_w * 0.28, -body_h, 0])
+                cylinder(d = cable_slot_w, h = backplate_t * 6, center = true);
+        }
     }
 }
 
