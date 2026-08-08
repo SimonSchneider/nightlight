@@ -12,6 +12,7 @@
 | 6 | Foam double-sided tape | 1 roll | Mounts the board and both pixels to the back plate; can also retain the plate. |
 | 7 | Opaque tape (electrical or gaffer) | 1 roll | Masks the board's power LED. |
 | 8 | Tracing paper or baking parchment | a sheet | Spare diffuser, only if the printed face reads wrong. |
+| 8b | Aluminium or black gaffer tape | 1 roll | Contingency only — lines the chamber walls if coupon sample 6 shows the walls passing light. Most kitchens and toolboxes already have one. |
 | 9 | Hot-melt glue | a few sticks | Retains the back plate. Optional if you use tape instead — see Assembly. |
 
 **Tools:** soldering iron, wire strippers, scissors, small screwdriver, hot-glue gun
@@ -72,11 +73,24 @@ To use it:
 5. If a thickness other than 1.2 mm wins, set `face_t` in `cad/params.scad` and re-run
    `./render.sh` before printing the body. Nothing else needs changing.
 
-**If sample 6 glows, do not just thicken the walls.** That would mean the filament is
-too translucent for this design, and the fix is a different spool — a more heavily
-pigmented white — not more plastic. Thickening the walls to chase opacity also drags
-the face thicker, since both derive from the same material, and you lose at the other
-end. Test another white instead.
+**Sample 6 will most likely pass.** Transmission through a pigmented medium falls
+roughly exponentially with thickness, so doubling the thickness roughly squares it: a
+filament passing 20 % at 1.2 mm passes around 4 % at 2.4 mm. That 5:1 contrast between
+icon and wall comes from the geometry, not from picking a special spool.
+
+**If it does glow, line the chambers — do not buy another spool, and do not thicken
+the walls.** In order of preference:
+
+1. **Line the inside of the chamber walls** with aluminium tape, black gaffer tape, or
+   a brush of acrylic paint. The walls are flat and fully accessible with the back
+   plate off, and nowhere near the face. This costs a roll of tape and fixes it
+   completely. It is the same recoverable-at-assembly principle used for the board's
+   power LED and the paper diffuser.
+2. Only if lining somehow fails, try a more heavily pigmented white.
+
+Do **not** raise `wall` to chase opacity. `face_t` and `wall` are related — the face is
+the wall thinned from behind — so thickening the wall pushes you toward a thicker face
+and you lose transmission at the other end. You cannot win both by adding plastic.
 
 Bias thinner on the face when it is close. Too bright is fixed with a slider or a
 scrap of tracing paper; too dim is fixed only by reprinting.
