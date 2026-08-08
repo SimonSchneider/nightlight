@@ -136,19 +136,21 @@ git commit -m "docs: add bill of materials and wiring"
 - Consumes: nothing
 - Produces: variables `aperture_d`, `face_t`, `wall`, `chamber_depth`, `divider_t`, `aperture_gap`, `margin`, `backplate_t`, `clearance`, `cable_hole_d`, `post_h`, `post_d`, `post_slot_w`, `body_w`, `body_h`, `body_d`, `ap_x`; modules `sun_2d(d)` and `moon_2d(d)`
 
-- [ ] **Step 1: Install OpenSCAD**
+- [ ] **Step 1: Confirm OpenSCAD is available**
 
 ```bash
-brew install --cask openscad
+openscad --version
 ```
 
-- [ ] **Step 2: Verify the CLI is reachable and note its path**
+Expected: `OpenSCAD version 2026.06.12` (already installed at `~/.homebrew_install/bin/openscad`). If this fails, `brew install --cask openscad` and use `/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD` instead.
+
+- [ ] **Step 2: Confirm the Manifold backend is active**
 
 ```bash
-/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD --version
+openscad --help 2>&1 | grep -i backend || echo "no backend flag"
 ```
 
-Expected: a version string such as `OpenSCAD version 2021.01`. The GUI app bundle contains the CLI binary; there is no bare `openscad` on `PATH` after a cask install.
+This version defaults to the Manifold geometry backend rather than the older CGAL one. That matters for the checks later in this plan: Manifold repairs many self-intersections silently and does **not** emit the classic `Object may not be a valid 2-manifold` warning. So an empty warning log is weaker evidence than it used to be — the visual preview and file-size checks carry more weight, not less.
 
 - [ ] **Step 3: Write `cad/params.scad`**
 
@@ -200,7 +202,7 @@ assert(face_t >= 0.8,
 
 ```bash
 cd ~/repos/daynight-indicator
-/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD -o /dev/null cad/params.scad 2>&1 | tee /tmp/scad.log
+openscad -o /dev/null cad/params.scad 2>&1 | tee /tmp/scad.log
 ```
 
 Expected: no `ERROR:` and no `Assertion` failure in the output. A warning that the design is empty is expected and correct — this file defines variables only.
@@ -247,7 +249,7 @@ use <icons.scad>
 translate([-30, 0]) sun_2d(aperture_d);
 translate([ 30, 0]) moon_2d(aperture_d);
 EOF
-/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD \
+openscad \
   --projection=ortho --camera=0,0,0,0,0,0,220 --imgsize=800,400 \
   -o /tmp/icons.png _preview_icons.scad
 open /tmp/icons.png
@@ -336,16 +338,20 @@ body();
 
 ```bash
 cd ~/repos/daynight-indicator/cad
-/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD -o /tmp/body.stl body.scad 2>&1 | tee /tmp/body.log
+openscad -o /tmp/body.stl body.scad 2>&1 | tee /tmp/body.log
 grep -iE "error|warning" /tmp/body.log || echo "CLEAN"
 ```
 
-Expected: `CLEAN`, or at most warnings unrelated to manifoldness. Any line containing `Object may not be a valid 2-manifold` is a **failure** — the print service will reject the file. If it appears, the usual cause is two coincident faces; nudge the offending `linear_extrude` height by 0.01 mm and re-render.
+Expected: `CLEAN`, or at most warnings unrelated to geometry.
+
+Any line containing `ERROR` is a hard failure. Any line mentioning `2-manifold` or `self-intersect` means the print service may reject the file; the usual cause is two coincident faces, fixed by nudging the offending `linear_extrude` height by 0.01 mm.
+
+Because this OpenSCAD version uses the Manifold backend, a silent log is **not** by itself proof the solid is sound — Manifold repairs some defects without comment. Steps 3 and 4 are the real check.
 
 - [ ] **Step 3: Render a preview from the front and look at it**
 
 ```bash
-/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD \
+openscad \
   --camera=0,0,0,55,0,25,320 --imgsize=1000,700 \
   -o /tmp/body_front.png body.scad
 open /tmp/body_front.png
@@ -364,7 +370,7 @@ difference() {
     translate([-200, 0, -200]) cube([400, 400, 400]);
 }
 EOF
-/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD \
+openscad \
   --camera=0,0,0,60,0,20,320 --imgsize=1000,700 \
   -o /tmp/body_section.png /tmp/section.scad
 open /tmp/body_section.png
@@ -437,7 +443,7 @@ backplate_with_holes();
 
 ```bash
 cd ~/repos/daynight-indicator/cad
-/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD -o /tmp/backplate.stl backplate.scad 2>&1 | tee /tmp/bp.log
+openscad -o /tmp/backplate.stl backplate.scad 2>&1 | tee /tmp/bp.log
 grep -iE "error|not be a valid 2-manifold" /tmp/bp.log || echo "CLEAN"
 ```
 
@@ -446,7 +452,7 @@ Expected: `CLEAN`.
 - [ ] **Step 3: Render a preview and look at it**
 
 ```bash
-/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD \
+openscad \
   --camera=0,0,0,55,0,205,320 --imgsize=1000,700 \
   -o /tmp/backplate.png backplate.scad
 open /tmp/backplate.png
@@ -468,7 +474,9 @@ git commit -m "cad: add back plate with captive cable entry and zip-tie post"
 
 ---
 
-## Task 5: Export STLs and Order the Prints
+## Task 5: Export STLs, Review, and Order the Prints
+
+> **This task contains a human review gate at Step 4.** An agent executing this plan must stop there and wait for Simon's explicit approval before ordering.
 
 **Files:**
 - Create: `cad/render.sh`
@@ -485,7 +493,7 @@ git commit -m "cad: add back plate with captive cable entry and zip-tie post"
 # Export print-ready STLs and preview PNGs.
 set -euo pipefail
 
-SCAD="/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD"
+SCAD="openscad"
 cd "$(dirname "$0")"
 mkdir -p stl preview
 
@@ -495,8 +503,12 @@ for part in body backplate; do
     if ! "$SCAD" -o "stl/${part}.stl" "${part}.scad" 2> "preview/${part}.log"; then
         echo "RENDER FAILED: $part"; fail=1; continue
     fi
-    if grep -qi "not be a valid 2-manifold" "preview/${part}.log"; then
-        echo "NOT MANIFOLD: $part — print services will reject this"; fail=1
+    if grep -qiE "2-manifold|self-intersect|ERROR" "preview/${part}.log"; then
+        echo "GEOMETRY PROBLEM: $part — print services may reject this"; fail=1
+    fi
+    # A near-empty STL means the render "succeeded" but produced nothing.
+    if [ "$(stat -f%z "stl/${part}.stl")" -lt 1024 ]; then
+        echo "EMPTY STL: $part"; fail=1
     fi
     "$SCAD" --camera=0,0,0,55,0,25,320 --imgsize=1000,700 \
             -o "preview/${part}.png" "${part}.scad" 2>/dev/null
@@ -523,7 +535,37 @@ ls -la ~/repos/daynight-indicator/cad/stl/
 
 Expected: both files are tens to hundreds of kilobytes. A file under about 1 KB means an empty render — the geometry did not survive, and the STL is useless despite the render "succeeding".
 
-- [ ] **Step 4: Order the prints**
+- [ ] **Step 4: HUMAN REVIEW GATE — Simon previews the CAD and approves**
+
+**Do not proceed to ordering without explicit approval.** Prints cannot be iterated cheaply; this is the last free moment to change anything.
+
+Present all three of these:
+
+*Interactive — the real review.* Rotate, zoom, and section the model:
+
+```bash
+cd ~/repos/daynight-indicator/cad
+open -a OpenSCAD body.scad
+```
+
+Press **F5** for a fast preview or **F6** for the full render. In the GUI, **View → Thrown Together** shows overlapping and inverted geometry in a distinct colour, which is the quickest way to spot a defect. Open `backplate.scad` the same way.
+
+*Quick look at the actual print geometry.* macOS Finder previews STL natively — select the file and press space:
+
+```bash
+open ~/repos/daynight-indicator/cad/stl/
+```
+
+This is worth doing separately from the OpenSCAD view, because it shows the exported mesh rather than the source model. If they disagree, trust this one — it is what the print service receives.
+
+*Rendered previews.* `cad/preview/body.png` and `cad/preview/backplate.png`, produced by `render.sh`.
+
+Ask specifically about:
+- Do the sun and moon read clearly as a sun and a moon at a glance?
+- Is 120 × 64 × 27 mm the size you want on a shelf? All three are single variables in `params.scad`.
+- Does the divider look like it fully seals between the two chambers?
+
+- [ ] **Step 5: Order the prints**
 
 Upload both STLs to a print service (JLC3DP, Craftcloud, PCBWay, or a local service).
 
@@ -537,7 +579,7 @@ Specify:
 
 **Do not order a coloured or black part.** The translucent face only works in white.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 cd ~/repos/daynight-indicator
