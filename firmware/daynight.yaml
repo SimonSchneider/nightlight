@@ -41,8 +41,7 @@ wifi:
 captive_portal:
 
 light:
-  # The physical strip. Never exposed to Home Assistant directly — the two
-  # partitions below are the user-facing entities.
+  # The physical strip. Never exposed to Home Assistant.
   - platform: esp32_rmt_led_strip
     id: strip
     pin: GPIO4
@@ -51,9 +50,14 @@ light:
     rgb_order: GRB
     internal: true
 
+  # Both partitions are internal too. The Home Assistant interface is the two
+  # switches below plus the two brightness numbers — nothing else. Exposing
+  # these as light entities as well would put a "Sun" light beside a "Sun icon"
+  # switch, two controls for one pixel, with only the switch enforcing mutual
+  # exclusion.
   - platform: partition
     id: sun_light
-    name: "Sun"
+    internal: true
     default_transition_length: 20s
     segments:
       - id: strip
@@ -62,7 +66,7 @@ light:
 
   - platform: partition
     id: moon_light
-    name: "Moon"
+    internal: true
     default_transition_length: 20s
     segments:
       - id: strip
@@ -76,9 +80,10 @@ number:
     optimistic: true
     restore_value: true
     initial_value: 2
-    # Floor of 1, not 0. At 0 the lit icon goes dark and NEITHER icon shows,
-    # which is exactly the "unplugged or broken" state the two-icon design
-    # exists to prevent — and it is one slider drag away while tuning at 1-2 %.
+    # Floor of 1, not 0. At 0 a *lit* moon renders dark, which is exactly the
+    # "unplugged or broken" state the two-icon design exists to prevent — and
+    # it is one slider drag away while tuning at 1-2 %. (Both icons dark is a
+    # legitimate daytime state; a lit icon that renders dark is not.)
     min_value: 1
     max_value: 100
     step: 1
@@ -92,8 +97,8 @@ number:
     optimistic: true
     restore_value: true
     initial_value: 80
-    # Floor of 1 for the same reason as night_brightness: 0 would leave both
-    # icons dark and destroy the "exactly one icon lit" invariant.
+    # Floor of 1 for the same reason as night_brightness: at 0 a lit sun would
+    # render dark and be indistinguishable from a dead device.
     min_value: 1
     max_value: 100
     step: 1
@@ -102,10 +107,20 @@ number:
       - script.execute: apply_state
 
 script:
-  - id: show_night
+  # show_moon / show_sun are the mutual-exclusion mechanism. Each one lights
+  # its own icon, extinguishes the other icon's pixel, and marks the other
+  # switch off so Home Assistant's view matches the panel.
+  #
+  # The other switch is cleared with publish_state(false) via a lambda, NOT
+  # with switch.turn_off. publish_state only updates the reported state; it
+  # does not fire that switch's turn_off_action, so the two switches cannot
+  # trigger each other in a loop. The other icon's pixel is already turned off
+  # explicitly on the line above, so no action needs to run for it.
+  - id: show_moon
     mode: restart
     then:
       - light.turn_off: sun_light
+      - lambda: 'id(sun_icon).publish_state(false);'
       - light.turn_on:
           id: moon_light
           red: 100%
@@ -113,10 +128,11 @@ script:
           blue: 0%
           brightness: !lambda 'return id(night_brightness).state / 100.0;'
 
-  - id: show_day
+  - id: show_sun
     mode: restart
     then:
       - light.turn_off: moon_light
+      - lambda: 'id(moon_icon).publish_state(false);'
       - light.turn_on:
           id: sun_light
           red: 100%
@@ -124,30 +140,64 @@ script:
           blue: 60%
           brightness: !lambda 'return id(day_brightness).state / 100.0;'
 
-  # Used only where the switch's state is already settled: at boot, and when a
-  # brightness number changes. NOT used from the switch's own actions.
+  # Three states: moon lit, sun lit, or both dark (ordinary daytime — normal
+  # and expected). The invariant is AT MOST one icon lit, never both.
+  #
+  # Used only where the switches' states are already settled: at boot, and
+  # when a brightness number changes. NOT used from a switch's own actions —
+  # see the note on the switches below.
+  #
+  # If both switches somehow restore ON from flash, the moon wins: a child
+  # woken at 3am should see night. show_moon then clears the sun switch, so
+  # the impossible state does not survive the boot.
   - id: apply_state
     mode: restart
     then:
       - if:
           condition:
-            switch.is_on: night_mode
+            switch.is_on: moon_icon
           then:
-            - script.execute: show_night
+            - script.execute: show_moon
           else:
-            - script.execute: show_day
+            - if:
+                condition:
+                  switch.is_on: sun_icon
+                then:
+                  - script.execute: show_sun
+                else:
+                  - light.turn_off: moon_light
+                  - light.turn_off: sun_light
 
 switch:
+  # Two independent switches, one per icon, giving three useful states:
+  # moon on = night, sun on = the morning wake window, both off = daytime.
+  # Mutual exclusion is enforced here in the firmware rather than left to
+  # Home Assistant, because any automation-ordering mistake could otherwise
+  # light both icons at once, which means nothing to a child.
+  #
+  # Each switch's actions call show_moon / show_sun directly rather than going
+  # through apply_state. A template switch fires its action BEFORE publishing
+  # its new state, so anything reading switch.is_on for the switch being
+  # toggled would read the OLD value and drive the wrong icon on every toggle.
+  # Nothing below reads the state of the switch it belongs to.
   - platform: template
-    id: night_mode
-    name: "Night mode"
+    id: moon_icon
+    name: "Moon icon"
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
-    # These call show_night/show_day directly rather than apply_state.
-    # A template switch fires its action BEFORE publishing its new state, so
-    # anything reading switch.is_on from in here would read the OLD value and
-    # display the wrong icon on every toggle.
     turn_on_action:
-      - script.execute: show_night
+      - script.execute: show_moon
     turn_off_action:
-      - script.execute: show_day
+      # Only this icon goes dark. The sun is left exactly as it was, which is
+      # normally off — both dark is ordinary daytime.
+      - light.turn_off: moon_light
+
+  - platform: template
+    id: sun_icon
+    name: "Sun icon"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - script.execute: show_sun
+    turn_off_action:
+      - light.turn_off: sun_light

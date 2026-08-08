@@ -10,7 +10,9 @@ semi-dark bedroom. Home Assistant decides which state is current; the device onl
 
 ## Requirements
 
-1. Two states only: **night** and **day**.
+1. Three states: **night** (moon lit), the **morning wake window** (sun lit), and **ordinary
+   daytime** (both icons dark). At most one icon is ever lit; both lit is meaningless to a child
+   and must be impossible.
 2. State is set entirely by Home Assistant — by schedule, or manually at any time.
 3. Readable in a fully dark room, and equally readable on a dark winter morning.
 4. No LCD or screen.
@@ -21,7 +23,8 @@ semi-dark bedroom. Home Assistant decides which state is current; the device onl
 
 Explicitly out of scope. These are cheap to add later and adding them now would inflate the build:
 
-- An "almost morning" third state, nap mode, or quiet hours.
+- A third *icon* — an "almost morning" symbol — nap mode, or quiet hours. (Both icons dark is a
+  state, but it needs no hardware and no extra symbol.)
 - Any clock, schedule, or sunrise logic on the device.
 - Sound, buttons, or child-facing input of any kind.
 - Battery operation.
@@ -46,7 +49,28 @@ The obvious simplification is a single light: lit means night, unlit means day. 
 dark winter morning. At 07:00 in December the room is black, nothing is lit, and "day" is
 indistinguishable from "unplugged" or "broken" — precisely when the child most needs an answer.
 
-Two apertures, exactly one lit at a time, closes that hole for the cost of one extra pixel.
+Two apertures, at most one lit at a time, closes that hole for the cost of one extra pixel.
+
+### Why two switches, and why both-dark is allowed
+
+The first implementation had a single `night_mode` switch: on showed the moon, off showed the sun.
+That makes "not night" and "sun lit" the same thing, so the sun burned at 80 % from wake-up until
+bedtime. Nobody needs a lit sun at 2pm, and the child is at nursery or school for most of it.
+
+Splitting it into one switch per icon adds the state the single switch could not express: **both
+dark**. That is now the ordinary daytime state, deliberately, and it is no longer a fault
+condition — during the day the room is light, so an unlit panel carries no risk of being read as
+"unplugged". The device is only asked to answer a question in the dark.
+
+The winter-morning case that justified two icons in the first place is untouched, because the sun
+is lit *precisely* during the dark wake window — 06:30 to 08:30 on school days — which is exactly
+the interval the argument above is about. By 08:30 in December the sky is doing the job the sun
+pixel was there to do.
+
+What the split must not do is let both icons light at once, which any automation-ordering mistake
+would otherwise allow. Mutual exclusion therefore stays in the firmware, not in Home Assistant:
+turning one switch on extinguishes the other icon and clears the other switch's reported state.
+The invariant relaxes from "exactly one lit" to **at most one lit**.
 
 ### Why WS2812 pixels on the 3.3 V rail
 
@@ -68,8 +92,9 @@ parts, fewer failure modes, and moves all colour and brightness tuning into soft
 ```
 Home Assistant                    Device
 --------------                    ------
-automations ─> switch.day_night_indicator_night_mode ─(ESPHome API)─> ESP32-C3
-                                                                 │
+automations ─> switch.day_night_indicator_moon_icon ─┐
+                                                     ├─(ESPHome API)─> ESP32-C3
+            ─> switch.day_night_indicator_sun_icon  ─┘            │
                                                             GPIO4 (data)
                                                                  │
                                                         ┌────────┴────────┐
@@ -77,17 +102,20 @@ automations ─> switch.day_night_indicator_night_mode ─(ESPHome API)─> ESP3
                                                      sun               moon
 ```
 
-The device holds no schedule and no clock. It exposes one switch and renders whatever state that
-switch is in. All timing logic lives in Home Assistant, where it is easy to change.
+The device holds no schedule and no clock. It exposes two switches, one per icon, and renders
+whatever state they are in — with mutual exclusion enforced on the device so at most one icon is
+ever lit. All timing logic lives in Home Assistant, where it is easy to change.
 
 ### Components
 
 | Unit | Responsibility | Interface |
 |---|---|---|
-| HA automations | Decide when night begins and ends | Set `switch.day_night_indicator_night_mode` |
-| ESPHome `night_mode` switch | Translate state into a light pair | On/off; drives both partition lights |
-| Partition lights `sun_light` / `moon_light` | Own one pixel each | Standard ESPHome light API |
-| Brightness `number` entities | Hold tuned levels across reboots | Read by the switch's actions |
+| HA automations | Decide when night begins, when the wake window opens, and when it closes | Set `switch.day_night_indicator_moon_icon` and `switch.day_night_indicator_sun_icon` |
+| ESPHome `moon_icon` switch | Light the moon; extinguish the sun and clear its switch | On/off |
+| ESPHome `sun_icon` switch | Light the sun; extinguish the moon and clear its switch | On/off |
+| Scripts `show_moon` / `show_sun` / `apply_state` | Own the mutual-exclusion rule and the boot/brightness re-apply | Internal |
+| Partition lights `sun_light` / `moon_light` | Own one pixel each | Internal, not exposed to HA |
+| Brightness `number` entities | Hold tuned levels across reboots | Read by the display scripts |
 | Enclosure | Diffuse and separate the two icons | Physical |
 
 ## Hardware
@@ -248,10 +276,15 @@ nozzle. The part is designed support-free.
 
 ## Behaviour
 
-| State | Sun pixel | Moon pixel |
-|---|---|---|
-| Night | off | deep amber, ~2 % brightness |
-| Day | warm white, ~80 % brightness | off |
+| State | Sun pixel | Moon pixel | Set by |
+|---|---|---|---|
+| Night | off | deep amber, ~2 % brightness | Moon switch on |
+| Morning wake window | warm white, ~80 % brightness | off | Sun switch on |
+| Ordinary daytime | off | off | Both switches off |
+
+Both lit is not in the table because it is unreachable: turning either switch on extinguishes the
+other icon and clears the other switch. Both dark is a normal, expected state — the panel only has
+a question to answer in the dark.
 
 Transitions crossfade over 20 seconds, so a child who happens to be awake catches it changing.
 
@@ -267,7 +300,7 @@ mechanism and will need adjusting after first assembly.
 
 | Failure | Behaviour | Mitigation |
 |---|---|---|
-| Power loss | Switch restores its last state on boot via `restore_mode` | Built in |
+| Power loss | Both switches restore their last state on boot via `restore_mode`; if both somehow restore on, the moon wins | Built in |
 | WiFi or HA down overnight | Device holds last state; will not flip in the morning | **Accepted gap** |
 | Weak WiFi from C3 clone | Intermittent connection | Substitute a different board |
 | Diffuser too harsh, or pixel visible as a hot spot | Poor readability | Tape paper behind the window |
@@ -275,7 +308,8 @@ mechanism and will need adjusting after first assembly.
 | Board power LED leaks | Blue/red point of light at night | Opaque tape over the LED at assembly |
 | Cable yanked | USB-C pads tear off the PCB | Knot in the cable catches on the slot |
 | Back plate gaps or drops out | Wiring exposed in a child's bedroom | Hot-glue dabs or foam tape at assembly; prisable for servicing |
-| Brightness set to 0 in HA | Neither icon lit — the failure the design exists to prevent | `min_value: 1` on both brightness numbers |
+| Brightness set to 0 in HA | A *lit* icon renders dark — indistinguishable from a dead device, the failure the design exists to prevent | `min_value: 1` on both brightness numbers |
+| Automation order mistake sets both switches on | Both icons lit, signal meaningless | Firmware mutual exclusion: each switch clears the other |
 
 ### The accepted gap
 
@@ -289,36 +323,57 @@ straightforward to retrofit and requires no hardware change.
 
 ## Home Assistant Integration
 
-A single entity, `switch.day_night_indicator_night_mode`, toggleable by hand at any time.
+Two switch entities, both toggleable by hand at any time:
 
-**On that entity ID.** Home Assistant derives it from the device's `friendly_name` ("Day/Night
-Indicator") plus the component name ("Night mode"), not from the ESPHome node name (`daynight`).
-This changed in HA 2025.5, which removed a legacy exception — older material describing
-`switch.daynight_night_mode` reflects the removed behaviour. Entity IDs are also assigned once at
+| Entity | Meaning |
+|---|---|
+| `switch.day_night_indicator_moon_icon` | On = moon lit = night |
+| `switch.day_night_indicator_sun_icon` | On = sun lit = the morning wake window |
+
+Plus the two brightness numbers. That is the whole interface — the partition lights are `internal`
+and deliberately not exposed, so there is exactly one control per icon rather than a switch and a
+light entity competing for the same pixel.
+
+**On those entity IDs.** Home Assistant derives them from the device's `friendly_name` ("Day/Night
+Indicator") plus each component name ("Moon icon", "Sun icon"), not from the ESPHome node name
+(`daynight`). This changed in HA 2025.5, which removed a legacy exception — older material
+describing `switch.daynight_*` reflects the removed behaviour. Entity IDs are also assigned once at
 first registration and never auto-migrate, so a device first paired under an older version may
-still carry the old ID. Confirm against the running instance before relying on it; automations
-targeting a non-existent entity report success and do nothing.
+still carry the old ID. A device flashed with the earlier single-switch firmware will additionally
+show `switch.day_night_indicator_night_mode` as an unavailable leftover. Confirm against the
+running instance before relying on these IDs; automations targeting a non-existent entity report
+success and do nothing.
 
-Two automations flip it on schedule — on at bedtime, off at wake time — with a separate weekend
-wake time if wanted. No helper `input_boolean` is needed; the ESPHome switch is the state.
+Four automations drive them: moon on at bedtime (19:00), sun on at wake time (06:30 weekdays,
+07:30 weekends), and sun off at 08:30 every day, leaving both icons dark for the rest of the day.
+Turning the sun on needs no accompanying moon-off action — the firmware does that. No helper
+`input_boolean` is needed; the ESPHome switches are the state.
 
 ## Firmware Sketch
 
-Approximately 40 lines of ESPHome YAML:
+Roughly 60 lines of ESPHome YAML:
 
 - `esp32_rmt_led_strip` driving 2 pixels on GPIO4, marked `internal`.
-- Two `partition` lights, one pixel each, named Sun and Moon, with a 20 s default transition.
+- Two `partition` lights, one pixel each, both `internal`, with a 20 s default transition.
 - Two template `number` entities holding day and night brightness, with `restore_value: true`.
-- A template `switch` with `restore_mode: RESTORE_DEFAULT_OFF`, whose `turn_on_action` and
-  `turn_off_action` set the pair to the table above, reading brightness from the numbers via
-  lambda.
+- Two scripts, `show_moon` and `show_sun`: each lights its own icon at the colour and brightness
+  in the table above, turns the other icon's pixel off, and clears the other switch.
+- A third script, `apply_state`, dispatching on the two switches for boot and brightness changes:
+  moon lit, sun lit, or both dark, with the moon winning if both are somehow on.
+- Two template `switch`es with `restore_mode: RESTORE_DEFAULT_OFF`. Each `turn_on_action` runs its
+  display script; each `turn_off_action` turns off only its own icon.
 
 **Resolved during planning:**
 
 - **A template switch fires its action *before* publishing its new state.** Any action reading
   `switch.is_on` from inside `turn_on_action` therefore sees the *old* value and would display
-  the wrong icon on every toggle. The switch's actions call `show_night` / `show_day` directly
-  rather than going through a state-reading dispatcher.
+  the wrong icon on every toggle. Each switch's actions call `show_moon` / `show_sun` directly
+  rather than going through the state-reading `apply_state`, and no action reads the state of the
+  switch it belongs to.
+- **Clearing the other switch uses `publish_state(false)` in a lambda, not `switch.turn_off`.**
+  `publish_state` updates the reported state without firing that switch's `turn_off_action`, so
+  the two switches cannot trigger each other in a loop. The other icon's pixel is already
+  extinguished explicitly by the same script, so no action needs to run on its behalf.
 - **Boot ordering between `number` and `switch` restore** is sidestepped by an `on_boot` handler
   at priority `-100`, which runs after all components have restored and re-applies state.
 - **`rmt_channel` is not required** — current ESPHome manages RMT allocation itself.
@@ -333,11 +388,14 @@ Approximately 40 lines of ESPHome YAML:
 3. **Light bleed** — in a dark room with only the moon lit, confirm the sun aperture is fully
    dark, and that no stray point of light shows from the board's power LED. This validates the
    dividing wall and the LED masking.
-4. **Power-loss restore** — set night mode, pull USB, restore power, confirm the moon returns.
-5. **HA round trip** — toggle from HA and from the device's own entity; confirm both work and the
-   crossfade runs.
-6. **Winter-morning case** — with the room fully dark, set day mode and confirm the sun is
-   unambiguously lit.
+4. **Power-loss restore** — turn the moon switch on, pull USB, restore power, confirm the moon
+   returns. Repeat with both switches off and confirm the panel stays dark.
+5. **HA round trip** — toggle both switches from HA; confirm both work and the crossfade runs.
+6. **Winter-morning case** — with the room fully dark, turn the sun switch on and confirm the sun
+   is unambiguously lit.
+7. **Mutual exclusion** — with the moon lit, turn the sun switch on: the moon must go dark *and*
+   its switch must report off in HA within a second or two. Repeat in the other direction. Then
+   turn the lit icon off and confirm both are dark and both switches report off.
 
 ## Build Order
 

@@ -3,38 +3,49 @@
 #
 # Times are the starting point, not gospel. Adjust to suit.
 #
+# The device has two independent switches, one per icon, and three useful
+# states: moon on (night), sun on (the morning wake window), and both off
+# (ordinary daytime). The firmware enforces mutual exclusion, so turning one
+# on always extinguishes the other.
+#
 # entity_id note: firmware/daynight.yaml sets both `name: daynight` and
 # `friendly_name: "Day/Night Indicator"`. Setting friendly_name makes
 # ESPHome/Home Assistant combine the friendly device name with each entity's
 # own name to build the entity_id (has_entity_name semantics), NOT the raw
-# `name:` slug. For the template switch `id: night_mode, name: "Night mode"`
-# that yields switch.day_night_indicator_night_mode — that is the value used
-# below, per https://www.home-assistant.io/integrations/esphome/.
+# `name:` slug. For the template switches `id: moon_icon, name: "Moon icon"`
+# and `id: sun_icon, name: "Sun icon"` that yields
+# switch.day_night_indicator_moon_icon and switch.day_night_indicator_sun_icon
+# — the values used below, per
+# https://www.home-assistant.io/integrations/esphome/.
 #
 # Entity_ids are only assigned once, at first registration, and HA does not
 # rename an already-registered entity if you re-flash with different naming
 # or run an older HA/ESPHome version. Before relying on these automations,
-# confirm the real id on your instance: Developer Tools → States (search
-# "night_mode"), or Settings → Devices & Services → ESPHome → the daynight
-# device → check the switch entity's id. The two candidates you may see are
-# switch.day_night_indicator_night_mode (current, friendly_name-based) or
-# switch.daynight_night_mode (legacy, name-slug-based). If the id here
-# doesn't match, update all three entity_id lines below — otherwise the
-# automations will trigger, report success, and do nothing, because they're
-# silently pointed at an entity that doesn't exist.
+# confirm the real ids on your instance: Developer Tools → States (search
+# "moon_icon" and "sun_icon"), or Settings → Devices & Services → ESPHome →
+# the daynight device → check the two switch entities' ids. The candidates
+# you may see are switch.day_night_indicator_moon_icon /
+# switch.day_night_indicator_sun_icon (current, friendly_name-based) or
+# switch.daynight_moon_icon / switch.daynight_sun_icon (legacy,
+# name-slug-based). This firmware also replaces an earlier single
+# switch.day_night_indicator_night_mode, which may still be listed as an
+# unavailable leftover — it is not the entity you want. If the ids here don't
+# match, update every entity_id line below — otherwise the automations will
+# trigger, report success, and do nothing, because they're silently pointed
+# at an entity that doesn't exist.
 
-- alias: "Day/Night — night at bedtime"
-  description: "Show the moon from bedtime."
+- alias: "Day/Night — moon at bedtime"
+  description: "Show the moon from bedtime. The firmware clears the sun automatically."
   triggers:
     - trigger: time
       at: "19:00:00"
   actions:
     - action: switch.turn_on
       target:
-        entity_id: switch.day_night_indicator_night_mode
+        entity_id: switch.day_night_indicator_moon_icon
   mode: single
 
-- alias: "Day/Night — day at wake time (weekdays)"
+- alias: "Day/Night — sun at wake time (weekdays)"
   description: "Show the sun on school mornings."
   triggers:
     - trigger: time
@@ -43,12 +54,14 @@
     - condition: time
       weekday: [mon, tue, wed, thu, fri]
   actions:
-    - action: switch.turn_off
+    # No moon-off action is needed: the firmware extinguishes the moon and
+    # clears its switch whenever the sun switch is turned on.
+    - action: switch.turn_on
       target:
-        entity_id: switch.day_night_indicator_night_mode
+        entity_id: switch.day_night_indicator_sun_icon
   mode: single
 
-- alias: "Day/Night — day at wake time (weekend)"
+- alias: "Day/Night — sun at wake time (weekend)"
   description: "Show the sun later at weekends."
   triggers:
     - trigger: time
@@ -57,7 +70,21 @@
     - condition: time
       weekday: [sat, sun]
   actions:
+    # Same as the weekday automation: turning the sun on clears the moon.
+    - action: switch.turn_on
+      target:
+        entity_id: switch.day_night_indicator_sun_icon
+  mode: single
+
+- alias: "Day/Night — dark for the day"
+  description: >-
+    End the wake window. Both icons dark for the rest of the day, which is the
+    ordinary daytime state — nobody needs a lit sun at 2pm.
+  triggers:
+    - trigger: time
+      at: "08:30:00"
+  actions:
     - action: switch.turn_off
       target:
-        entity_id: switch.day_night_indicator_night_mode
+        entity_id: switch.day_night_indicator_sun_icon
   mode: single
