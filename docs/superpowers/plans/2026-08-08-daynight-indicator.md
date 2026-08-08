@@ -35,6 +35,10 @@ Three changes were made during the build. **Where a task's code block below disa
 2. **Lip clearance loosened from 0.15 mm to 0.3 mm per side** (`clearance` 0.3 → 0.6; the variable is the total, not per side). 0.15 mm/side is inside the tolerance band of a typical print service over a 115 mm span, risking a plate that will not close on a part that cannot be cheaply re-ordered.
 3. **Zip-tie post removed** (`post_h`, `post_d`, `post_slot_w` deleted). The device lives on a high shelf out of reach. Strain relief moves to an assembly step: a simple overhand knot tied in the cable inside the enclosure is ~10 mm across and cannot pass back through the 8 mm slot, so it takes the pull instead of the board's USB-C connector. Consistent with the project principle that recoverable failures earn assembly instructions, not printed geometry.
 
+4. **One switch became two.** `night_mode` (ON = moon, OFF = sun) is replaced by `moon_icon` and `sun_icon`. The old model left the sun lit at 80 % all afternoon; the new one gives three states — moon at night, sun during the wake window, **both dark for ordinary daytime**. The invariant relaxes from "exactly one lit" to "**at most** one lit"; both lit remains impossible, enforced in firmware. Tasks 6 and 8's YAML blocks below are superseded — read `firmware/daynight.yaml`, `homeassistant/automations.yaml` and the spec instead.
+
+5. **Entity IDs are `switch.day_night_indicator_*`, not `switch.daynight_*`.** Home Assistant derives them from the device `friendly_name` plus the component name, not the ESPHome node name. HA 2025.5 removed the legacy exception that made the older form work. IDs are also assigned once at first registration and never auto-migrate.
+
 ## File Structure
 
 | File | Responsibility |
