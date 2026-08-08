@@ -23,36 +23,63 @@ drops in with no change other than possibly the GPIO number.
 
 ## Print the diffuser coupon first
 
-`cad/stl/coupon.stl` — ~9 g, about 20 minutes. **Print it before the enclosure.**
+`cad/stl/coupon.stl` — ~12 g, about 25 minutes. **Print it before the enclosure.**
 
-The 1.2 mm face over each icon is the diffuser, and it is the one dimension that
-cannot be adjusted once the box is assembled: it is an icon-shaped membrane, and
-thinning it in place means shaving it with a knife and hoping not to punch through.
+The design depends on two *opposite* properties of the same filament, and one spool
+has to satisfy both:
 
-Whether 1.2 mm is right depends on things no calculation settles — how heavily your
+- The **1.2 mm face** over each icon must **transmit** enough light to read. This
+  cannot be adjusted after assembly — the face is an icon-shaped membrane, and
+  thinning it in place means shaving it with a knife and hoping not to punch through.
+- The **2.4 mm walls and divider** must **block** light. If 2.4 mm glows even faintly
+  the whole panel lights up instead of just the icon, the sun and moon stop being
+  distinguishable, and the device fails from the other direction. This one is not
+  adjustable at all — it is the same thickness everywhere the enclosure is solid.
+
+Whether 1.2 mm is right depends on things no calculation settles: how heavily your
 particular white filament is pigmented, how bright the room gets, and how much output
 the pixels give on the 3.3 V rail. Lithophanes suggest 1.2 mm should transmit well
 (they run 0.8 mm bright to 3 mm nearly opaque), but that is an argument, not a
 measurement.
 
-The coupon has five windows at **0.4, 0.8, 1.2, 1.6 and 2.0 mm**, thinnest first, with
-a notch at the thin end so the orientation survives being put down.
+The coupon carries six samples, thinnest first, with a notch at the thin end so the
+orientation survives being put down:
+
+| # | Thickness | What it is |
+|---|---|---|
+| 1 | 0.4 mm | face candidate |
+| 2 | 0.8 mm | face candidate |
+| 3 | **1.2 mm** | face candidate — the current design |
+| 4 | 1.6 mm | face candidate |
+| 5 | 2.0 mm | face candidate |
+| 6 | **2.4 mm, solid** | **the opacity control** — marked by a tick in each long edge, since it has no recess to see |
 
 To use it:
 
 1. Print it in the **same spool** the enclosure will use. Different white filaments
    differ a lot in pigment loading; a coupon from another spool proves nothing.
 2. Wire up one pixel and hold the coupon **25 mm above it** — the real chamber depth.
-3. Look at each window in the room and the lighting the finished device will live in.
-   Judge **two** states, because they pull in opposite directions:
+3. **Judge samples 1–5 for transmission**, in the room and the lighting the finished
+   device will live in. Two states, because they pull in opposite directions:
    - **Night**, pixel at ~2 % amber, room fully dark: readable but not room-lighting.
    - **Day**, pixel at ~80 % warm white, room lit as it will be on a winter morning:
      legible from across the room.
-4. If a thickness other than 1.2 mm wins, set `face_t` in `cad/params.scad` to it and
-   re-run `./render.sh` before printing the body. Nothing else needs changing.
+4. **Judge sample 6 for opacity**, and judge it hard. Set the pixel to **~80 % warm
+   white** (the brightest the device ever gets) and view it in a **fully dark room**
+   with dark-adapted eyes. That is the worst case — the winter-morning sun state —
+   and it is when any wall glow would show. Sample 6 must look **dark**. A faint
+   even glow is tolerable; a clearly visible disc is not.
+5. If a thickness other than 1.2 mm wins, set `face_t` in `cad/params.scad` and re-run
+   `./render.sh` before printing the body. Nothing else needs changing.
 
-Bias thinner when it is close. Too bright is fixed with a slider or a scrap of tracing
-paper; too dim is fixed only by reprinting.
+**If sample 6 glows, do not just thicken the walls.** That would mean the filament is
+too translucent for this design, and the fix is a different spool — a more heavily
+pigmented white — not more plastic. Thickening the walls to chase opacity also drags
+the face thicker, since both derive from the same material, and you lose at the other
+end. Test another white instead.
+
+Bias thinner on the face when it is close. Too bright is fixed with a slider or a
+scrap of tracing paper; too dim is fixed only by reprinting.
 
 ## Cutting the pixels
 
