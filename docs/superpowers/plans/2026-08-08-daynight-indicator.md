@@ -202,7 +202,7 @@ assert(face_t >= 0.8,
 
 ```bash
 cd ~/repos/daynight-indicator
-openscad -o /dev/null cad/params.scad 2>&1 | tee /tmp/scad.log
+openscad -o /tmp/check.csg cad/params.scad 2>&1 | tee /tmp/scad.log
 ```
 
 Expected: no `ERROR:` and no `Assertion` failure in the output. A warning that the design is empty is expected and correct — this file defines variables only.
