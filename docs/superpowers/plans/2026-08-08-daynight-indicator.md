@@ -357,7 +357,17 @@ openscad \
 open /tmp/body_front.png
 ```
 
-Expected: a shallow box with a sun window on the left and a moon window on the right, a visible wall between the two chambers, and the back open.
+Expected: a plain, featureless white slab.
+
+**This is correct, not a failure.** The icons are cut into the *inside* of the front wall, so the outer surface stays smooth and uninterrupted. An unlit icon is invisible from the front; only the lit one shows. To actually see the icon geometry, render the inner face instead:
+
+```bash
+openscad --projection=ortho --camera=0,0,0,180,0,0,320 --imgsize=1000,700 \
+  -o /tmp/body_inner.png body.scad
+open /tmp/body_inner.png
+```
+
+Expected there: a sun recess on the left and a moon recess on the right, separated by the divider wall.
 
 - [ ] **Step 4: Confirm the divider actually seals**
 
@@ -371,10 +381,12 @@ difference() {
 }
 EOF
 openscad \
-  --camera=0,0,0,60,0,20,320 --imgsize=1000,700 \
+  --projection=ortho --camera=0,0,0,90,0,0,150 --imgsize=1000,500 \
   -o /tmp/body_section.png /tmp/section.scad
 open /tmp/body_section.png
 ```
+
+A straight-on orthographic view is used deliberately. An oblique angle makes it genuinely hard to tell whether the divider meets the walls or merely appears to, and this is the one feature that must not be got wrong.
 
 Expected: a cutaway showing the divider running from the front face all the way to the open back edge with no gap. **This is the one feature that cannot be fixed after printing** — if light can get past the divider, the device does not work. Check it deliberately.
 
