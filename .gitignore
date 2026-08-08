@@ -1,0 +1,5 @@
+# Scratch preview files rendered during CAD work
+cad/_*.scad
+cad/preview/
+# Never commit real credentials
+firmware/secrets.yaml
