@@ -20,7 +20,7 @@ post_d        = 6.0;   // zip-tie post diameter
 post_slot_w   = 3.5;   // slot through the post for the zip tie
 
 // --- Fit -------------------------------------------------------------------
-clearance     = 0.3;   // back plate lip to body cavity
+clearance     = 0.6;   // total lip clearance (0.3 mm per side against cavity)
 
 $fn = 96;
 
