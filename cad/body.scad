@@ -30,10 +30,20 @@ module body() {
                           body_h - 2 * wall,
                           body_d], center = true);
             }
-            // Divider, from the inner surface of the front wall to the open
-            // back edge. This is the feature that cannot be fixed later.
-            translate([0, 0, -wall / 2])
-                cube([divider_t, body_h - 2 * wall, body_d - wall],
+            // Divider, from the inner surface of the front wall back to just
+            // short of the back plate's lip. It must NOT run to the open back
+            // edge: the lip drops into that same volume for backplate_t, and a
+            // full-depth divider would collide with it and hold the box open.
+            //
+            //   front face  =  body_d/2 - wall                      =  11.3
+            //   rear face   = -body_d/2 + backplate_t + divider_gap = -11.1
+            //   height      = divider_h                             =  22.4
+            //   centre z    = (11.3 + -11.1) / 2                    =   0.1
+            //             = (backplate_t + divider_gap - wall) / 2
+            //
+            // This is the feature that cannot be fixed later.
+            translate([0, 0, (backplate_t + divider_gap - wall) / 2])
+                cube([divider_t, body_h - 2 * wall, divider_h],
                      center = true);
         }
 

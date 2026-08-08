@@ -136,7 +136,10 @@ chamber is convenient — **not directly behind an aperture**, or it shadows the
 Features:
 
 - A sun aperture and a moon aperture, side by side.
-- A **1.0 mm translucent printed face** across each aperture, acting as the primary diffuser.
+- A **1.2 mm translucent printed face** across each aperture, acting as the primary diffuser.
+  This is three passes of a 0.4 mm nozzle. An earlier revision of this document said 1.0 mm,
+  which is not a whole multiple of 0.4 and so could not be built as written; `face_t = 1.2`
+  in `cad/params.scad` is the value that was built and is the one that governs.
 - **No printed diffuser ledge.** An earlier revision specified a recess behind each aperture to
   hold a paper diffuser disc. It does not work: retaining a disc requires a rim behind it, while
   inserting one from behind requires an opening larger than the disc. Thickening the wall enough
@@ -146,12 +149,28 @@ Features:
 - An **internal dividing wall** between the two apertures. Without it the lit moon bleeds through
   the sun and both glow faintly, destroying the signal. This is the single most important feature
   of the part, and the one thing that cannot be fixed after printing.
-- A pocket behind each aperture locating one pixel.
+- **No printed pixel pocket.** An earlier revision listed "a pocket behind each aperture locating
+  one pixel". It was dropped during the build and is superseded by `chamber_depth = 25` with both
+  pixels taped to the back plate. The reason: a pocket in the body would fix the pixel's standoff
+  from the face, but 25 mm of chamber is already enough for the light to spread evenly, so the
+  pocket buys nothing optically — while its depth, width and the pixel's own carrier dimensions
+  are three guessed numbers on a print that cannot be re-ordered cheaply. Lateral centring, which
+  is the part that actually matters, is a recoverable assembly step: place each pixel at
+  x = ±28 mm, centred behind its window. Consistent with the principle above.
+- A **wire pass-through notch cut in the back plate's lip**, on the divider line. The board and
+  the cable slot are both in the moon chamber, so the sun pixel's wiring has to cross the divider.
+  The notch is in the *lip*, never in the divider: the divider stays solid, so light between the
+  chambers still has to travel the long way round, ~25 mm behind the faces and through a 6 × 2.6 mm
+  gap. At the 2 % night duty that leak is negligible.
 - A **U-shaped cable slot open to the back plate's edge**, generously oversized. Strain relief is
   a knot tied in the cable at assembly, not a printed feature.
+- **No printed fasteners.** Nothing retains the back plate in the geometry; it is held by hot-glue
+  dabs or double-sided tape at assembly, chosen so it can still be prised off for servicing. A
+  plate that comes loose is recoverable, so per the principle above it earns an instruction rather
+  than printed clips or screw bosses.
 
-Parametric so aperture diameter, face thickness, wall height and pixel pocket dimensions are all
-variables rather than baked geometry.
+Parametric so aperture diameter, face thickness, wall height, chamber depth, divider clearance and
+wire-notch width are all variables rather than baked geometry.
 
 ### Board mounting
 
@@ -203,13 +222,16 @@ still matters even out of reach: the board's USB-C connector is surface-mounted,
 off the PCB under a hard pull, and that destroys the board with no recovery — so the pull must
 land on something other than the connector.
 
-Assembly order: back plate off → mask the board's power LED → tape board to back plate → lay
-cable into the slot → plug into board → tie the knot inside → back plate on.
+Assembly order: back plate off → mask the board's power LED → tape board to back plate (moon
+side) → tape the two pixels at x = ±28 mm → route the sun pixel's wiring through the lip notch →
+lay cable into the slot → plug into board → tie the knot inside → back plate on and retained with
+hot-glue dabs or double-sided tape. `docs/BUILD.md` carries the working version of this list.
 
 ### Material
 
-White PLA or PETG, FDM, from a print service. White FDM material diffuses light well at ~1 mm.
-Face thickness is specified as a multiple of a 0.4 mm nozzle. The part is designed support-free.
+White PLA or PETG, FDM, from a print service. White FDM material diffuses light well at around a
+millimetre; the face is 1.2 mm. Face thickness is specified as a whole multiple of a 0.4 mm
+nozzle. The part is designed support-free.
 
 ### Prior art considered and rejected
 
@@ -252,6 +274,8 @@ mechanism and will need adjusting after first assembly.
 | Light bleed between icons | Both icons glow, signal lost | Internal dividing wall |
 | Board power LED leaks | Blue/red point of light at night | Opaque tape over the LED at assembly |
 | Cable yanked | USB-C pads tear off the PCB | Knot in the cable catches on the slot |
+| Back plate gaps or drops out | Wiring exposed in a child's bedroom | Hot-glue dabs or foam tape at assembly; prisable for servicing |
+| Brightness set to 0 in HA | Neither icon lit — the failure the design exists to prevent | `min_value: 1` on both brightness numbers |
 
 ### The accepted gap
 

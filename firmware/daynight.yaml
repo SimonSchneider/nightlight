@@ -76,7 +76,10 @@ number:
     optimistic: true
     restore_value: true
     initial_value: 2
-    min_value: 0
+    # Floor of 1, not 0. At 0 the lit icon goes dark and NEITHER icon shows,
+    # which is exactly the "unplugged or broken" state the two-icon design
+    # exists to prevent — and it is one slider drag away while tuning at 1-2 %.
+    min_value: 1
     max_value: 100
     step: 1
     unit_of_measurement: "%"
@@ -89,7 +92,9 @@ number:
     optimistic: true
     restore_value: true
     initial_value: 80
-    min_value: 0
+    # Floor of 1 for the same reason as night_brightness: 0 would leave both
+    # icons dark and destroy the "exactly one icon lit" invariant.
+    min_value: 1
     max_value: 100
     step: 1
     unit_of_measurement: "%"
