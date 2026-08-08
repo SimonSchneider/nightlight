@@ -21,6 +21,39 @@
 and show weak WiFi. If range is a problem, an ESP32-C3-DevKitM-1 or a Wemos D1 Mini
 drops in with no change other than possibly the GPIO number.
 
+## Print the diffuser coupon first
+
+`cad/stl/coupon.stl` — ~9 g, about 20 minutes. **Print it before the enclosure.**
+
+The 1.2 mm face over each icon is the diffuser, and it is the one dimension that
+cannot be adjusted once the box is assembled: it is an icon-shaped membrane, and
+thinning it in place means shaving it with a knife and hoping not to punch through.
+
+Whether 1.2 mm is right depends on things no calculation settles — how heavily your
+particular white filament is pigmented, how bright the room gets, and how much output
+the pixels give on the 3.3 V rail. Lithophanes suggest 1.2 mm should transmit well
+(they run 0.8 mm bright to 3 mm nearly opaque), but that is an argument, not a
+measurement.
+
+The coupon has five windows at **0.4, 0.8, 1.2, 1.6 and 2.0 mm**, thinnest first, with
+a notch at the thin end so the orientation survives being put down.
+
+To use it:
+
+1. Print it in the **same spool** the enclosure will use. Different white filaments
+   differ a lot in pigment loading; a coupon from another spool proves nothing.
+2. Wire up one pixel and hold the coupon **25 mm above it** — the real chamber depth.
+3. Look at each window in the room and the lighting the finished device will live in.
+   Judge **two** states, because they pull in opposite directions:
+   - **Night**, pixel at ~2 % amber, room fully dark: readable but not room-lighting.
+   - **Day**, pixel at ~80 % warm white, room lit as it will be on a winter morning:
+     legible from across the room.
+4. If a thickness other than 1.2 mm wins, set `face_t` in `cad/params.scad` to it and
+   re-run `./render.sh` before printing the body. Nothing else needs changing.
+
+Bias thinner when it is close. Too bright is fixed with a slider or a scrap of tracing
+paper; too dim is fixed only by reprinting.
+
 ## Cutting the pixels
 
 **Why two separate pixels and not a 2-pixel length of strip.** At 60 LEDs/m the pixel

@@ -7,7 +7,7 @@ cd "$(dirname "$0")"
 mkdir -p stl preview
 
 fail=0
-for part in body backplate; do
+for part in body backplate coupon; do
     echo "--- $part"
     if ! "$SCAD" -o "stl/${part}.stl" "${part}.scad" 2> "preview/${part}.log"; then
         echo "RENDER FAILED: $part"; fail=1; continue
