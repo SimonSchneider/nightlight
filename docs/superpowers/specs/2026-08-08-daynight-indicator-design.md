@@ -98,7 +98,7 @@ switch is in. All timing logic lives in Home Assistant, where it is easy to chan
 | Light | 2 × WS2812B or SK6812 | Powered from the board's 3.3 V pin, data on GPIO4 |
 | Power | USB-C, captive cable | A few mA at night; the WiFi radio dominates |
 | Enclosure | Custom body + back plate | Board lives inside; see Enclosure below |
-| Retention | 1 × zip tie | Cable strain relief |
+| Fixings | 1 × zip tie, foam double-sided tape, opaque tape | Strain relief, board mount, LED mask |
 
 **Pin choice:** GPIO2, GPIO8 and GPIO9 are strapping pins on the ESP32-C3 and are sampled during
 boot; hanging a WS2812 data line off one risks intermittent boot failures. GPIO4 is used instead.
@@ -114,19 +114,24 @@ Two ordered prints — body and back plate — forming one integrated object. Th
 on hand, so iteration is slow and expensive, and the design is built to be right on arrival.
 Every dimension that could be wrong is made tolerant rather than precise.
 
-The ESP32-C3 lives **inside** the enclosure. At 18 × 11 mm it fits easily in depth the panel
-already needs for light mixing, and integrating it removes an external cable run between two
-separate objects.
+The ESP32-C3 lives **inside** the enclosure, stuck to the back plate with foam double-sided tape.
+At 18 × 11 mm it fits easily in depth the panel already needs for light mixing, and integrating
+it removes an external cable run between two separate objects.
+
+### Design principle: recoverable vs. irrecoverable
+
+Prints are ordered and cannot be iterated cheaply, so the rule is:
+
+- **Irrecoverable after printing** → design it out of the geometry.
+- **Recoverable at assembly with tape, paper, or a knife** → leave it to the assembly
+  instructions and keep the part simple.
+
+This is why the sun/moon divider is a printed wall but the board's power LED is a piece of tape.
 
 ### Body (custom, parametric OpenSCAD)
 
-Three internal compartments, divided by walls:
-
-| Compartment | Contents |
-|---|---|
-| Sun | 1 pixel, behind the sun aperture |
-| Moon | 1 pixel, behind the moon aperture |
-| Board | ESP32-C3, fully opaque, no aperture |
+Two internal chambers, one per aperture, separated by a dividing wall. The board sits in whichever
+chamber is convenient — **not directly behind an aperture**, or it shadows the diffuser.
 
 Features:
 
@@ -135,35 +140,42 @@ Features:
 - A **recessed ledge** behind each aperture, sized to accept a hand-cut disc of tracing paper,
   baking parchment, or frosted acrylic. This is the escape hatch: if the printed face reads too
   harsh or too dim on arrival, the fix is free and immediate rather than a reprint.
-- **Internal dividing walls** separating all three compartments. Without them the lit moon bleeds
-  through the sun and both glow faintly, destroying the signal. This is the single most important
-  feature of the part.
+- An **internal dividing wall** between the two apertures. Without it the lit moon bleeds through
+  the sun and both glow faintly, destroying the signal. This is the single most important feature
+  of the part, and the one thing that cannot be fixed after printing.
 - A pocket behind each aperture locating one pixel.
 - A **generously oversized cable hole** in the back plate, plus an **internal zip-tie post** for
   strain relief.
 
-Parametric so aperture diameter, face thickness, wall height, pixel pocket and board pocket
-dimensions are all variables rather than baked geometry.
+Parametric so aperture diameter, face thickness, wall height and pixel pocket dimensions are all
+variables rather than baked geometry.
 
-### Board compartment requirements
+### Board mounting
 
-Three constraints, each addressing a specific failure:
+Foam double-sided tape onto the back plate. No pocket, no clips, no dedicated compartment — the
+board is 18 × 11 mm and light enough that tape is sufficient, and every printed retention feature
+is a dimension that could be wrong on arrival.
 
-1. **Fully opaque, no shared light path.** The C3 SuperMini has an always-on power LED. Inside a
-   box with a translucent face it leaks through, putting a blue or red point of light next to a
-   2 % amber moon — the exact wavelength the night state exists to avoid. The compartment is
-   walled off from both lit chambers. Belt and braces: cover the LED with opaque tape at assembly.
-2. **Antenna clearance.** Plastic is RF-transparent so enclosure is fine in itself, but the PCB
+Three assembly rules, none of which affect the printed geometry:
+
+1. **Mask the power LED.** The C3 SuperMini has an always-on power LED. Inside a box with a
+   translucent face it leaks through, putting a blue or red point of light next to a 2 % amber
+   moon — the exact wavelength the night state exists to avoid. Cover it with opaque tape, paint,
+   or nail polish. Recoverable at any time by opening the back plate, so it does not warrant a
+   printed compartment.
+2. **Keep the board off the apertures.** Mount it to one side. Directly behind an aperture it
+   casts a shadow on the diffuser.
+3. **Antenna clearance.** Plastic is RF-transparent so enclosure is fine in itself, but the PCB
    antenna must not sit against the pixel wiring. Orient the board with the antenna end facing
    open volume and the wiring running the other way. The SuperMini's weak-antenna reputation
    means there may be no margin to spare.
-3. **No port cutout.** See below.
 
 ### Power entry
 
 **A captive USB-C cable through an oversized hole, retained by an internal zip-tie post.**
 
-A fitted USB-C port cutout was rejected: its position is fixed relative to the board pocket, and
+A fitted USB-C port cutout was rejected: its position is fixed relative to wherever the board
+happens to be taped, which is not a dimension the print can know in advance, and
 being 1 mm out on a print that cannot be re-ordered cheaply means filing plastic or paying again.
 A seam-clamped "pinch" hole was rejected for the same class of reason — it depends on hitting a
 tolerance against a guessed cable jacket diameter, where too tight prevents the back plate
@@ -174,8 +186,11 @@ leaves and works with any cable diameter. Under a hard pull the zip tie yields b
 surface-mounted USB-C connector tears its pads off the PCB. It also leaves no exposed port for a
 child to poke.
 
-Assembly order: back plate off → feed cable through hole → plug into board → zip-tie cable to
-post → seat board in its compartment → back plate on.
+The post is retained despite the board being taped down, because tape in shear will peel long
+before the connector gives, and a torn-off USB-C pad destroys the board with no recovery.
+
+Assembly order: back plate off → mask the board's power LED → tape board to back plate → feed
+cable through hole → plug into board → zip-tie cable to post → back plate on.
 
 ### Material
 
@@ -220,8 +235,8 @@ mechanism and will need adjusting after first assembly.
 | WiFi or HA down overnight | Device holds last state; will not flip in the morning | **Accepted gap** |
 | Weak WiFi from C3 clone | Intermittent connection | Substitute a different board |
 | Diffuser too harsh or too dim | Poor readability | Drop a paper diffuser into the ledge |
-| Light bleed between icons | Both icons glow, signal lost | Internal dividing walls |
-| Board power LED leaks | Blue/red point of light at night | Opaque board compartment + tape over LED |
+| Light bleed between icons | Both icons glow, signal lost | Internal dividing wall |
+| Board power LED leaks | Blue/red point of light at night | Opaque tape over the LED at assembly |
 | Cable yanked | USB-C pads tear off the PCB | Zip-tie post takes the load |
 
 ### The accepted gap
@@ -268,8 +283,8 @@ Approximately 40 lines of ESPHome YAML:
 2. **Lit-room readability** — confirm the sun is legible across a daylit room at the chosen day
    brightness.
 3. **Light bleed** — in a dark room with only the moon lit, confirm the sun aperture is fully
-   dark, and that no light escapes from the board compartment. This validates the dividing walls
-   and the power-LED masking.
+   dark, and that no stray point of light shows from the board's power LED. This validates the
+   dividing wall and the LED masking.
 4. **Power-loss restore** — set night mode, pull USB, restore power, confirm the moon returns.
 5. **HA round trip** — toggle from HA and from the device's own entity; confirm both work and the
    crossfade runs.
