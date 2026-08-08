@@ -137,9 +137,12 @@ Features:
 
 - A sun aperture and a moon aperture, side by side.
 - A **1.0 mm translucent printed face** across each aperture, acting as the primary diffuser.
-- A **recessed ledge** behind each aperture, sized to accept a hand-cut disc of tracing paper,
-  baking parchment, or frosted acrylic. This is the escape hatch: if the printed face reads too
-  harsh or too dim on arrival, the fix is free and immediate rather than a reprint.
+- **No printed diffuser ledge.** An earlier revision specified a recess behind each aperture to
+  hold a paper diffuser disc. It does not work: retaining a disc requires a rim behind it, while
+  inserting one from behind requires an opening larger than the disc. Thickening the wall enough
+  to satisfy both leaves a thin translucent halo around each icon that glows unintentionally.
+  Since a paper diffuser is a recoverable fix, it is taped to the inside of the front wall at
+  assembly instead — consistent with the principle above.
 - An **internal dividing wall** between the two apertures. Without it the lit moon bleeds through
   the sun and both glow faintly, destroying the signal. This is the single most important feature
   of the part, and the one thing that cannot be fixed after printing.
@@ -234,7 +237,7 @@ mechanism and will need adjusting after first assembly.
 | Power loss | Switch restores its last state on boot via `restore_mode` | Built in |
 | WiFi or HA down overnight | Device holds last state; will not flip in the morning | **Accepted gap** |
 | Weak WiFi from C3 clone | Intermittent connection | Substitute a different board |
-| Diffuser too harsh or too dim | Poor readability | Drop a paper diffuser into the ledge |
+| Diffuser too harsh, or pixel visible as a hot spot | Poor readability | Tape paper behind the window |
 | Light bleed between icons | Both icons glow, signal lost | Internal dividing wall |
 | Board power LED leaks | Blue/red point of light at night | Opaque tape over the LED at assembly |
 | Cable yanked | USB-C pads tear off the PCB | Zip-tie post takes the load |
@@ -267,14 +270,16 @@ Approximately 40 lines of ESPHome YAML:
   `turn_off_action` set the pair to the table above, reading brightness from the numbers via
   lambda.
 
-**Unvalidated, to confirm during implementation:**
+**Resolved during planning:**
 
-- Boot ordering between `number` restore and `switch` restore. If the switch's restore action
-  fires before the numbers have restored their values, first-boot brightness may be wrong for
-  one cycle.
-- Whether the installed ESPHome version requires an explicit `rmt_channel` on
-  `esp32_rmt_led_strip`; newer versions assign it automatically.
-- Logger configuration for USB CDC on the C3 (`hardware_uart: USB_SERIAL_JTAG`).
+- **A template switch fires its action *before* publishing its new state.** Any action reading
+  `switch.is_on` from inside `turn_on_action` therefore sees the *old* value and would display
+  the wrong icon on every toggle. The switch's actions call `show_night` / `show_day` directly
+  rather than going through a state-reading dispatcher.
+- **Boot ordering between `number` and `switch` restore** is sidestepped by an `on_boot` handler
+  at priority `-100`, which runs after all components have restored and re-applies state.
+- **`rmt_channel` is not required** — current ESPHome manages RMT allocation itself.
+- **No `hardware_uart` setting is needed** for logging on the C3 under the esp-idf framework.
 
 ## Verification
 
