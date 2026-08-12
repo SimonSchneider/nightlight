@@ -3,3 +3,4 @@ cad/_*.scad
 cad/preview/
 # Never commit real credentials
 firmware/secrets.yaml
+firmware/arduino/wifi_nightlight/secrets.h
