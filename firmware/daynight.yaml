@@ -19,6 +19,7 @@ esphome:
     # in which those two components come up.
     priority: -100
     then:
+      - lambda: 'id(booted) = true;'
       - script.execute: apply_state
 
 esp32:
@@ -47,6 +48,16 @@ wifi:
     password: !secret fallback_password
 
 captive_portal:
+
+globals:
+  # Nothing may touch the LEDs until every component has finished setup(). The
+  # number entities restore from flash during their own setup and fire on_value,
+  # which would otherwise drive the lights mid-boot — a write through a not-yet
+  # valid pointer, which faults as "Store access fault" inside schedule_show().
+  - id: booted
+    type: bool
+    restore_value: no
+    initial_value: 'false'
 
 light:
   # The physical strip. Never exposed to Home Assistant.
@@ -189,6 +200,11 @@ script:
   - id: apply_state
     mode: restart
     then:
+      - if:
+          condition:
+            lambda: 'return !id(booted);'
+          then:
+            - script.stop: apply_state
       - if:
           condition:
             switch.is_on: moon_icon

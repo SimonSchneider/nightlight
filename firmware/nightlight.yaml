@@ -23,7 +23,7 @@
 # booting, or NTP has not resolved yet, that instant is simply missed and the
 # wrong icon stays lit for hours — a moon burning through breakfast, with no
 # recovery until the next boundary. Re-deriving the state from the clock every
-# 30 s is self-healing and mirrors what the Arduino loop() already did.
+# 10 s is self-healing and mirrors what the Arduino loop() already did.
 
 substitutions:
   device_name:    nightlight
@@ -49,6 +49,7 @@ esphome:
     # first render uses the tuned brightness rather than a default.
     priority: -100
     then:
+      - lambda: 'id(booted) = true;'
       - script.execute: apply_schedule
 
 esp32:
@@ -77,18 +78,23 @@ captive_portal:
 
 time:
   - platform: sntp
-    id: clock
+    id: sntp_time
     # Central European Time with automatic DST, same string as the Arduino build.
     timezone: CET-1CEST,M3.5.0,M10.5.0/3
     servers:
       - pool.ntp.org
       - time.google.com
-    on_time_sync:
-      # Re-evaluate the moment real time first arrives, rather than waiting up to
-      # 30 s showing whatever the boot guess was.
-      - script.execute: apply_schedule
 
 globals:
+  # Nothing may touch the LEDs until every component has finished setup(). The
+  # number entities restore from flash during their own setup and fire on_value,
+  # which would otherwise drive the lights mid-boot — a write through a not-yet
+  # valid pointer, which faults as "Store access fault" inside schedule_show().
+  - id: booted
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
   # Last rendered mode, so the 30 s tick only acts on a real change and does not
   # re-issue the same render every time it runs.
   #   -1 unknown (forces a render)   0 dark   1 morning/sun   2 night/moon
@@ -221,11 +227,12 @@ script:
     mode: restart
     then:
       - lambda: |-
-          auto t = id(clock).now();
+          if (!id(booted)) return;   // see the note on the booted global
+          auto t = id(sntp_time).now();
           if (!t.is_valid()) {
             // No trustworthy time yet. Show nothing rather than guess — a wrong
-            // icon is worse than a dark panel, and on_time_sync will call us
-            // again the moment NTP lands.
+            // icon is worse than a dark panel, and the 10 s tick will call us
+            // again within seconds of NTP landing.
             if (id(last_mode) != 0) {
               id(last_mode) = 0;
               id(show_dark).execute();
@@ -259,6 +266,6 @@ script:
       - script.execute: apply_schedule
 
 interval:
-  - interval: 30s
+  - interval: 10s
     then:
       - script.execute: apply_schedule
