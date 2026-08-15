@@ -200,25 +200,28 @@ script:
   - id: apply_state
     mode: restart
     then:
+      # The booted guard is a plain nested condition, NOT script.stop on this
+      # script. Stopping a script from inside its own action sequence mutates
+      # the state machine that is currently running it, which is its own source
+      # of faults — an earlier revision did exactly that.
       - if:
           condition:
-            lambda: 'return !id(booted);'
+            lambda: 'return id(booted);'
           then:
-            - script.stop: apply_state
-      - if:
-          condition:
-            switch.is_on: moon_icon
-          then:
-            - script.execute: show_moon
-          else:
             - if:
                 condition:
-                  switch.is_on: sun_icon
+                  switch.is_on: moon_icon
                 then:
-                  - script.execute: show_sun
+                  - script.execute: show_moon
                 else:
-                  - light.turn_off: moon_light
-                  - light.turn_off: sun_light
+                  - if:
+                      condition:
+                        switch.is_on: sun_icon
+                      then:
+                        - script.execute: show_sun
+                      else:
+                        - light.turn_off: moon_light
+                        - light.turn_off: sun_light
 
 switch:
   # Two independent switches, one per icon, giving three useful states:
