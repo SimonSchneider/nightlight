@@ -2,6 +2,14 @@ substitutions:
   device_name: daynight
   friendly_name: "Day/Night Indicator"
 
+  # Icon fade time. 0s is deliberate: a slow crossfade makes every manual toggle
+  # and every brightness tweak feel broken, and makes "is it working?" genuinely
+  # hard to answer. An earlier revision used 20s on the theory that a child would
+  # catch the change happening; in practice nobody is watching at 06:30:00.
+  # If the hard snap when the moon goes out in a dark room ever bothers anyone,
+  # 1s softens it without feeling laggy.
+  transition: 0s
+
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
@@ -58,7 +66,7 @@ light:
   - platform: partition
     id: sun_light
     internal: true
-    default_transition_length: 20s
+    default_transition_length: ${transition}
     segments:
       - id: strip
         from: 0
@@ -67,7 +75,7 @@ light:
   - platform: partition
     id: moon_light
     internal: true
-    default_transition_length: 20s
+    default_transition_length: ${transition}
     segments:
       - id: strip
         from: 1

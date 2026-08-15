@@ -326,7 +326,12 @@ Both lit is not in the table because it is unreachable: turning either switch on
 other icon and clears the other switch. Both dark is a normal, expected state — the panel only has
 a question to answer in the dark.
 
-Transitions crossfade over 20 seconds, so a child who happens to be awake catches it changing.
+Transitions are **instant**. An earlier revision crossfaded over 20 seconds, on the theory that a
+child who happened to be awake would catch it changing. In practice nobody is watching at
+06:30:00, while every manual toggle and every brightness adjustment felt broken — and during
+bring-up "nothing happened yet" was indistinguishable from "the firmware is dead", which cost
+real debugging time. The fade time is a single `transition` substitution at the top of each
+firmware; set it to `1s` if the moon going out in a dark room ever reads as too abrupt.
 
 Deep amber is chosen for night deliberately: it is at the far end of the spectrum from the blue
 wavelengths that suppress melatonin, and at 2 % it is readable in a black room without rousing a
@@ -399,7 +404,7 @@ recovery. No helper `input_boolean` is needed; the ESPHome switches are the stat
 Roughly 60 lines of ESPHome YAML:
 
 - `esp32_rmt_led_strip` driving 2 pixels on GPIO4, marked `internal`.
-- Two `partition` lights, one pixel each, both `internal`, with a 20 s default transition.
+- Two `partition` lights, one pixel each, both `internal`, with `default_transition_length: ${transition}` (0s).
 - Three template `number` entities holding day brightness, night brightness and the sun's hue (its
   green percentage), all with `restore_value: true`. Each one's `on_value` runs `apply_state`, so a
   change takes effect live.
@@ -437,15 +442,14 @@ Roughly 60 lines of ESPHome YAML:
    dividing wall and the LED masking.
 4. **Power-loss restore** — turn the moon switch on, pull USB, restore power, confirm the moon
    returns. Repeat with both switches off and confirm the panel stays dark.
-5. **HA round trip** — toggle both switches from HA; confirm both work and the crossfade runs.
+5. **HA round trip** — toggle both switches from HA; confirm both respond immediately.
 6. **Winter-morning case** — with the room fully dark, turn the sun switch on and confirm the sun
    is unambiguously lit.
-7. **Mutual exclusion** — with the moon lit, turn the sun switch on. The moon *switch* must report
-   off in HA within a second or two; the moon *pixel* then fades out over the full 20 s crossfade,
-   so watching the panel alone looks like both icons are lit for those 20 seconds. That is
-   expected, not a fault — judge mutual exclusion by the switch states, and give the panel 20 s
-   before judging it. Repeat in the other direction. Then turn the lit icon off and confirm both
-   switches report off and, 20 s later, both apertures are dark.
+7. **Mutual exclusion** — with the moon lit, turn the sun switch on. The moon must go out and the
+   sun come on immediately, and the moon *switch* must report off in HA. Repeat in the other
+   direction. Then turn the lit icon off and confirm both switches report off and both apertures
+   are dark. With instant transitions there is no window in which both icons appear lit, so any
+   overlap you see is a real fault.
 
 ## Build Order
 

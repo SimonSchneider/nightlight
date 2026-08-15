@@ -29,6 +29,10 @@ substitutions:
   device_name:    nightlight
   friendly_name:  "Nightlight"
 
+  # Icon fade time. 0s is deliberate — see the note in daynight.yaml. Set 1s if
+  # the moon going out in a dark room feels too abrupt.
+  transition:     0s
+
   # 24-hour clock. Keep the leading zero off; these go straight into C++.
   night_on_h:     "19"
   night_on_m:     "0"
@@ -86,7 +90,7 @@ time:
 
 globals:
   # Last rendered mode, so the 30 s tick only acts on a real change and does not
-  # restart the 20 s crossfade every time it runs.
+  # re-issue the same render every time it runs.
   #   -1 unknown (forces a render)   0 dark   1 morning/sun   2 night/moon
   - id: last_mode
     type: int
@@ -106,7 +110,7 @@ light:
   - platform: partition
     id: sun_light
     internal: true
-    default_transition_length: 20s
+    default_transition_length: ${transition}
     segments:
       - id: strip
         from: 0
@@ -115,7 +119,7 @@ light:
   - platform: partition
     id: moon_light
     internal: true
-    default_transition_length: 20s
+    default_transition_length: ${transition}
     segments:
       - id: strip
         from: 1
