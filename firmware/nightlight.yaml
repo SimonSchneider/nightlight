@@ -1,0 +1,260 @@
+# Nightlight — standalone schedule, flashed and updated from Home Assistant.
+#
+# This is an ESPHome port of firmware/arduino/wifi_nightlight/wifi_nightlight.ino.
+# The logic is unchanged: the device keeps its own clock via NTP and decides for
+# itself what to show. Home Assistant is only the build-and-flash tool plus a
+# place to tune brightness — pull the network and the schedule keeps running off
+# the ESP32's clock until the next reboot.
+#
+# That is deliberately the opposite of firmware/daynight.yaml, which has no clock
+# and takes orders from HA automations. Both are in the repo; flash one.
+#
+# WIRING (see docs/BUILD.md)
+#   strip VCC -> 3V3   strip GND -> GND   strip DIN -> GPIO4
+#   pixel 0 = sun (morning)      pixel 1 = moon (night)
+#
+# SCHEDULE (edit the substitutions below; they are read inside the lambda)
+#   19:00 -> moon on, night begins
+#   06:30 -> moon off, sun on
+#   10:00 -> sun off, dark for the rest of the day
+#
+# WHY A PERIODIC RE-EVALUATION RATHER THAN on_time TRIGGERS
+# ESPHome's on_time fires only at the instant a boundary passes. If the device is
+# booting, or NTP has not resolved yet, that instant is simply missed and the
+# wrong icon stays lit for hours — a moon burning through breakfast, with no
+# recovery until the next boundary. Re-deriving the state from the clock every
+# 30 s is self-healing and mirrors what the Arduino loop() already did.
+
+substitutions:
+  device_name:    nightlight
+  friendly_name:  "Nightlight"
+
+  # 24-hour clock. Keep the leading zero off; these go straight into C++.
+  night_on_h:     "19"
+  night_on_m:     "0"
+  morning_on_h:   "6"
+  morning_on_m:   "30"
+  morning_off_h:  "10"
+  morning_off_m:  "0"
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  on_boot:
+    # -100 runs last, after number components have restored from flash, so the
+    # first render uses the tuned brightness rather than a default.
+    priority: -100
+    then:
+      - script.execute: apply_schedule
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "Nightlight Fallback"
+    password: !secret fallback_password
+
+captive_portal:
+
+time:
+  - platform: sntp
+    id: clock
+    # Central European Time with automatic DST, same string as the Arduino build.
+    timezone: CET-1CEST,M3.5.0,M10.5.0/3
+    servers:
+      - pool.ntp.org
+      - time.google.com
+    on_time_sync:
+      # Re-evaluate the moment real time first arrives, rather than waiting up to
+      # 30 s showing whatever the boot guess was.
+      - script.execute: apply_schedule
+
+globals:
+  # Last rendered mode, so the 30 s tick only acts on a real change and does not
+  # restart the 20 s crossfade every time it runs.
+  #   -1 unknown (forces a render)   0 dark   1 morning/sun   2 night/moon
+  - id: last_mode
+    type: int
+    restore_value: no
+    initial_value: '-1'
+
+light:
+  # The physical strip. Never exposed to Home Assistant — the schedule owns it.
+  - platform: esp32_rmt_led_strip
+    id: strip
+    pin: GPIO4
+    num_leds: 2
+    chipset: WS2812
+    rgb_order: GRB
+    internal: true
+
+  - platform: partition
+    id: sun_light
+    internal: true
+    default_transition_length: 20s
+    segments:
+      - id: strip
+        from: 0
+        to: 0
+
+  - platform: partition
+    id: moon_light
+    internal: true
+    default_transition_length: 20s
+    segments:
+      - id: strip
+        from: 1
+        to: 1
+
+number:
+  - platform: template
+    id: night_brightness
+    name: "Night brightness"
+    optimistic: true
+    restore_value: true
+    initial_value: 2
+    # Floor of 1: at 0 the lit icon renders dark and is indistinguishable from a
+    # dead device, which is the failure the two-icon design exists to prevent.
+    min_value: 1
+    max_value: 100
+    step: 1
+    unit_of_measurement: "%"
+    on_value:
+      - script.execute: rerender
+
+  - platform: template
+    id: day_brightness
+    name: "Day brightness"
+    optimistic: true
+    restore_value: true
+    initial_value: 80
+    min_value: 1
+    max_value: 100
+    step: 1
+    unit_of_measurement: "%"
+    on_value:
+      - script.execute: rerender
+
+  - platform: template
+    id: sun_hue
+    name: "Sun hue"
+    optimistic: true
+    restore_value: true
+    initial_value: 85
+    # Green percentage; red is fixed at 100 % and blue at 0 %, so this sweeps the
+    # sun from deep amber through gold to lemon yellow.
+    # Floor of 55 keeps it clear of the moon's amber (green 45 %). Letting the two
+    # icons converge on the same hue would blunt the only signal the device sends.
+    min_value: 55
+    max_value: 100
+    step: 1
+    unit_of_measurement: "%"
+    on_value:
+      - script.execute: rerender
+
+text_sensor:
+  - platform: template
+    id: mode_text
+    name: "Mode"
+    update_interval: never
+
+script:
+  - id: show_moon
+    mode: restart
+    then:
+      - light.turn_off: sun_light
+      - light.turn_on:
+          id: moon_light
+          red: 100%
+          green: 45%
+          blue: 0%
+          brightness: !lambda 'return id(night_brightness).state / 100.0;'
+      - text_sensor.template.publish:
+          id: mode_text
+          state: "Night"
+
+  - id: show_sun
+    mode: restart
+    then:
+      - light.turn_off: moon_light
+      - light.turn_on:
+          id: sun_light
+          red: 100%
+          green: !lambda 'return id(sun_hue).state / 100.0;'
+          blue: 0%
+          brightness: !lambda 'return id(day_brightness).state / 100.0;'
+      - text_sensor.template.publish:
+          id: mode_text
+          state: "Morning"
+
+  - id: show_dark
+    mode: restart
+    then:
+      - light.turn_off: moon_light
+      - light.turn_off: sun_light
+      - text_sensor.template.publish:
+          id: mode_text
+          state: "Daytime"
+
+  # Decide what should be showing right now, and render it only if it differs
+  # from what is already showing.
+  - id: apply_schedule
+    mode: restart
+    then:
+      - lambda: |-
+          auto t = id(clock).now();
+          if (!t.is_valid()) {
+            // No trustworthy time yet. Show nothing rather than guess — a wrong
+            // icon is worse than a dark panel, and on_time_sync will call us
+            // again the moment NTP lands.
+            if (id(last_mode) != 0) {
+              id(last_mode) = 0;
+              id(show_dark).execute();
+            }
+            return;
+          }
+
+          const int now_m       = t.hour * 60 + t.minute;
+          const int night_on    = ${night_on_h}    * 60 + ${night_on_m};
+          const int morning_on  = ${morning_on_h}  * 60 + ${morning_on_m};
+          const int morning_off = ${morning_off_h} * 60 + ${morning_off_m};
+
+          // Night wraps past midnight, hence the OR.
+          const bool night   = (now_m >= night_on) || (now_m < morning_on);
+          const bool morning = (now_m >= morning_on) && (now_m < morning_off);
+
+          const int mode = night ? 2 : (morning ? 1 : 0);
+          if (mode == id(last_mode)) return;
+          id(last_mode) = mode;
+
+          if      (mode == 2) id(show_moon).execute();
+          else if (mode == 1) id(show_sun).execute();
+          else                id(show_dark).execute();
+
+  # Re-apply the CURRENT mode without waiting for a boundary. Used when a tuning
+  # number changes: clearing last_mode forces apply_schedule to render again.
+  - id: rerender
+    mode: restart
+    then:
+      - lambda: 'id(last_mode) = -1;'
+      - script.execute: apply_schedule
+
+interval:
+  - interval: 30s
+    then:
+      - script.execute: apply_schedule
